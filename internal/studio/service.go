@@ -19,11 +19,25 @@ const (
 	MaxPasteChars   = 32000
 )
 
+// ErrInvalidInput is wrapped by every user-input validation error of this package, so
+// handlers can answer 400 with the (Vietnamese) message without listing each error.
+var ErrInvalidInput = errors.New("dữ liệu không hợp lệ")
+
+type inputError struct{ msg string }
+
+func (e *inputError) Error() string { return e.msg }
+func (e *inputError) Unwrap() error { return ErrInvalidInput }
+
+func invalidInput(format string, args ...any) error {
+	return &inputError{msg: fmt.Sprintf(format, args...)}
+}
+
 var (
-	ErrRequestEmpty      = errors.New("yêu cầu không được để trống")
-	ErrRequestTooLong    = fmt.Errorf("yêu cầu vượt quá giới hạn %d ký tự", MaxRequestChars)
-	ErrPasteEmpty        = errors.New("nội dung prompt không được để trống")
-	ErrPasteTooLong      = fmt.Errorf("nội dung dán vượt quá giới hạn %d ký tự", MaxPasteChars)
+	ErrRequestEmpty      = invalidInput("yêu cầu không được để trống")
+	ErrRequestTooLong    = invalidInput("yêu cầu vượt quá giới hạn %d ký tự", MaxRequestChars)
+	ErrPasteEmpty        = invalidInput("nội dung prompt không được để trống")
+	ErrPasteTooLong      = invalidInput("nội dung dán vượt quá giới hạn %d ký tự", MaxPasteChars)
+	ErrCollectionName    = invalidInput("tên collection không được để trống")
 	ErrCompareNotAllowed = errors.New("phiên dán prompt không có yêu cầu gốc để so sánh")
 	ErrCompareIncomplete = errors.New("phiên bản chưa xong không thể so sánh — hãy Tạo lại trước")
 )
@@ -158,7 +172,7 @@ func ValidatePasteText(content string) error {
 }
 
 // ErrManualContentEmpty is returned when a manual edit has no content.
-var ErrManualContentEmpty = errors.New("nội dung prompt không được để trống")
+var ErrManualContentEmpty = invalidInput("nội dung prompt không được để trống")
 
 // CreateManualVersion appends a hand-edited version. parentID, when given, must be a
 // version of the same session (storage.ErrVersionMismatch otherwise); when empty the

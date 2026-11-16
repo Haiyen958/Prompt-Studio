@@ -19,7 +19,7 @@ func NewStartersHandler(svc *studio.Service) *StartersHandler {
 func (h *StartersHandler) ListStarters(w http.ResponseWriter, r *http.Request) {
 	starters, err := ai.LoadStarters()
 	if err != nil {
-		server.WriteError(w, http.StatusInternalServerError, "starters_error", err.Error())
+		writeInternalError(w, r, err)
 		return
 	}
 	server.WriteJSON(w, http.StatusOK, map[string]any{"starters": starters})

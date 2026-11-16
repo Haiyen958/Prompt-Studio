@@ -7,7 +7,6 @@ import (
 
 	"prompt-studio/internal/ai"
 	"prompt-studio/internal/server"
-	"prompt-studio/internal/storage"
 	"prompt-studio/internal/studio"
 )
 
@@ -35,16 +34,11 @@ func (h *VersionsHandler) CreateManualVersion(w http.ResponseWriter, r *http.Req
 
 	ver, err := h.svc.CreateManualVersion(sessionID, req.ParentID, req.Content, req.Instruction)
 	if err != nil {
-		switch {
-		case errors.Is(err, studio.ErrManualContentEmpty):
+		if errors.Is(err, studio.ErrManualContentEmpty) {
 			server.WriteError(w, http.StatusBadRequest, "empty_content", err.Error())
-		case errors.Is(err, storage.ErrVersionMismatch):
-			server.WriteError(w, http.StatusBadRequest, "version_mismatch", "Phiên bản gốc không thuộc phiên này")
-		case errors.Is(err, storage.ErrNotFound):
-			server.WriteError(w, http.StatusNotFound, "not_found", "Không tìm thấy phiên")
-		default:
-			server.WriteError(w, http.StatusInternalServerError, "db_error", err.Error())
+			return
 		}
+		writeServiceError(w, r, err, sessionNotFound)
 		return
 	}
 

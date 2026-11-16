@@ -17,6 +17,8 @@ type SessionsHandler struct {
 	svc *studio.Service
 }
 
+const sessionNotFound = "Không tìm thấy phiên"
+
 func NewSessionsHandler(svc *studio.Service) *SessionsHandler {
 	return &SessionsHandler{svc: svc}
 }
@@ -30,7 +32,7 @@ func (h *SessionsHandler) ListSessions(w http.ResponseWriter, r *http.Request) {
 	offset := clampInt(q.Get("offset"), 0, 0, 1<<30)
 
 	// Fetch one extra row to know whether another page exists.
-	list, err := h.svc.Repo().ListSessions(storage.SessionFilter{
+	list, err := h.svc.ListSessions(storage.SessionFilter{
 		Query:        q.Get("q"),
 		SavedOnly:    savedOnly,
 		CollectionID: q.Get("collection"),
@@ -39,7 +41,7 @@ func (h *SessionsHandler) ListSessions(w http.ResponseWriter, r *http.Request) {
 		Offset:       offset,
 	})
 	if err != nil {
-		server.WriteError(w, http.StatusInternalServerError, "db_error", err.Error())
+		writeInternalError(w, r, err)
 		return
 	}
 	hasMore := len(list) > limit
@@ -58,13 +60,9 @@ func (h *SessionsHandler) ListSessions(w http.ResponseWriter, r *http.Request) {
 
 func (h *SessionsHandler) GetSession(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	detail, err := h.svc.Repo().GetSessionDetail(id, true)
+	detail, err := h.svc.OpenSession(id)
 	if err != nil {
-		if errors.Is(err, storage.ErrNotFound) {
-			server.WriteError(w, http.StatusNotFound, "not_found", "Không tìm thấy phiên")
-			return
-		}
-		server.WriteError(w, http.StatusInternalServerError, "db_error", err.Error())
+		writeServiceError(w, r, err, sessionNotFound)
 		return
 	}
 	server.WriteJSON(w, http.StatusOK, detail)
@@ -86,7 +84,11 @@ func (h *SessionsHandler) PasteSession(w http.ResponseWriter, r *http.Request) {
 			})
 			return
 		}
-		server.WriteError(w, http.StatusBadRequest, "invalid_paste", err.Error())
+		if errors.Is(err, studio.ErrInvalidInput) {
+			server.WriteError(w, http.StatusBadRequest, "invalid_paste", err.Error())
+			return
+		}
+		writeServiceError(w, r, err, sessionNotFound)
 		return
 	}
 	server.WriteJSON(w, http.StatusCreated, map[string]any{
@@ -109,7 +111,7 @@ func (h *SessionsHandler) UpdateSession(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	sess, err := h.svc.Repo().UpdateSession(id, storage.SessionPatch{
+	sess, err := h.svc.UpdateSession(id, storage.SessionPatch{
 		Title:           req.Title,
 		Description:     req.Description,
 		CollectionID:    req.CollectionID,
@@ -117,11 +119,7 @@ func (h *SessionsHandler) UpdateSession(w http.ResponseWriter, r *http.Request) 
 		Target:          req.Target,
 	})
 	if err != nil {
-		if errors.Is(err, storage.ErrNotFound) {
-			server.WriteError(w, http.StatusNotFound, "not_found", "Không tìm thấy phiên")
-			return
-		}
-		server.WriteError(w, http.StatusBadRequest, "update_failed", err.Error())
+		writeServiceError(w, r, err, sessionNotFound)
 		return
 	}
 	server.WriteJSON(w, http.StatusOK, sess)
@@ -141,17 +139,9 @@ func (h *SessionsHandler) SaveSession(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	sess, err := h.svc.Repo().SaveSessionToLibrary(id, req.CollectionID, req.Title, req.VersionID)
+	sess, err := h.svc.SaveSession(id, req.CollectionID, req.Title, req.VersionID)
 	if err != nil {
-		if errors.Is(err, storage.ErrNotFound) {
-			server.WriteError(w, http.StatusNotFound, "not_found", "Không tìm thấy phiên")
-			return
-		}
-		if errors.Is(err, storage.ErrVersionMismatch) {
-			server.WriteError(w, http.StatusBadRequest, "version_mismatch", "Phiên bản không thuộc phiên này")
-			return
-		}
-		server.WriteError(w, http.StatusInternalServerError, "db_error", err.Error())
+		writeServiceError(w, r, err, sessionNotFound)
 		return
 	}
 	server.WriteJSON(w, http.StatusOK, sess)
@@ -159,12 +149,8 @@ func (h *SessionsHandler) SaveSession(w http.ResponseWriter, r *http.Request) {
 
 func (h *SessionsHandler) UnsaveSession(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	if err := h.svc.Repo().UnsaveSession(id); err != nil {
-		if errors.Is(err, storage.ErrNotFound) {
-			server.WriteError(w, http.StatusNotFound, "not_found", "Không tìm thấy phiên")
-			return
-		}
-		server.WriteError(w, http.StatusInternalServerError, "db_error", err.Error())
+	if err := h.svc.UnsaveSession(id); err != nil {
+		writeServiceError(w, r, err, sessionNotFound)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -172,12 +158,8 @@ func (h *SessionsHandler) UnsaveSession(w http.ResponseWriter, r *http.Request) 
 
 func (h *SessionsHandler) DeleteSession(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	if err := h.svc.Repo().DeleteSession(id); err != nil {
-		if errors.Is(err, storage.ErrNotFound) {
-			server.WriteError(w, http.StatusNotFound, "not_found", "Không tìm thấy phiên")
-			return
-		}
-		server.WriteError(w, http.StatusInternalServerError, "db_error", err.Error())
+	if err := h.svc.DeleteSession(id); err != nil {
+		writeServiceError(w, r, err, sessionNotFound)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

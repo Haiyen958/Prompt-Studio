@@ -182,17 +182,17 @@ func (h *SettingsHandler) TestConnection(w http.ResponseWriter, r *http.Request)
 }
 
 func (h *SettingsHandler) DeleteKey(w http.ResponseWriter, r *http.Request) {
-	if err := h.svc.Repo().DeleteAPIKey(); err != nil {
-		server.WriteError(w, http.StatusInternalServerError, "key_delete_error", err.Error())
+	if err := h.svc.DeleteAPIKey(); err != nil {
+		writeInternalError(w, r, err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *SettingsHandler) ExportData(w http.ResponseWriter, r *http.Request) {
-	bundle, err := h.svc.Repo().ExportAll()
+	bundle, err := h.svc.Export()
 	if err != nil {
-		server.WriteError(w, http.StatusInternalServerError, "export_error", err.Error())
+		writeInternalError(w, r, err)
 		return
 	}
 	filename := fmt.Sprintf("prompt-studio-backup-%s.json", time.Now().Format("2006-01-02"))
@@ -211,7 +211,7 @@ func (h *SettingsHandler) ImportData(w http.ResponseWriter, r *http.Request) {
 		server.WriteError(w, http.StatusBadRequest, "invalid_backup", "File sao lưu JSON không hợp lệ: "+err.Error())
 		return
 	}
-	if err := h.svc.Repo().ImportAll(&bundle); err != nil {
+	if err := h.svc.Import(&bundle); err != nil {
 		server.WriteError(w, http.StatusBadRequest, "import_error", err.Error())
 		return
 	}
@@ -223,11 +223,7 @@ func (h *SettingsHandler) ImportData(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *SettingsHandler) buildSettingsResponse() (*SettingsResponse, error) {
-	settings, err := h.svc.Repo().GetSettings()
-	if err != nil {
-		return nil, err
-	}
-	_, hint, hasKey, err := h.svc.Repo().GetAPIKey()
+	settings, hint, hasKey, err := h.svc.Settings()
 	if err != nil {
 		return nil, err
 	}

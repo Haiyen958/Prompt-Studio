@@ -2,12 +2,9 @@ package handlers
 
 import (
 	"encoding/json"
-	"errors"
 	"net/http"
 
-	"prompt-studio/internal/ai"
 	"prompt-studio/internal/server"
-	"prompt-studio/internal/storage"
 	"prompt-studio/internal/studio"
 )
 
@@ -25,6 +22,7 @@ func (h *GenerateHandler) CreateSessionAndGenerate(w http.ResponseWriter, r *htt
 		server.WriteError(w, http.StatusBadRequest, "invalid_json", "Dữ liệu JSON không hợp lệ")
 		return
 	}
+	// Validate before switching to SSE so input errors stay plain 400 JSON responses.
 	if err := studio.ValidateRequestText(in.Request); err != nil {
 		server.WriteError(w, http.StatusBadRequest, "invalid_request", err.Error())
 		return
@@ -40,10 +38,7 @@ func (h *GenerateHandler) CreateSessionAndGenerate(w http.ResponseWriter, r *htt
 		_ = server.WriteSSEEvent(w, flusher, evt.Event, evt.Data)
 	})
 	if err != nil {
-		_ = server.WriteSSEEvent(w, flusher, "error", map[string]any{
-			"code":    ai.ErrorCode(err),
-			"message": err.Error(),
-		})
+		_ = server.WriteSSEEvent(w, flusher, "error", sseErrorPayload(r, err))
 	}
 }
 
@@ -55,12 +50,9 @@ func (h *GenerateHandler) RefinePrompt(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := h.svc.Repo().GetSessionDetail(sessionID, false); err != nil {
-		if errors.Is(err, storage.ErrNotFound) {
-			server.WriteError(w, http.StatusNotFound, "not_found", "Không tìm thấy phiên")
-			return
-		}
-		server.WriteError(w, http.StatusInternalServerError, "db_error", err.Error())
+	// Resolve the session before switching to SSE so a bad id is a plain 404.
+	if _, err := h.svc.SessionExists(sessionID); err != nil {
+		writeServiceError(w, r, err, sessionNotFound)
 		return
 	}
 
@@ -74,9 +66,6 @@ func (h *GenerateHandler) RefinePrompt(w http.ResponseWriter, r *http.Request) {
 		_ = server.WriteSSEEvent(w, flusher, evt.Event, evt.Data)
 	})
 	if err != nil {
-		_ = server.WriteSSEEvent(w, flusher, "error", map[string]any{
-			"code":    ai.ErrorCode(err),
-			"message": err.Error(),
-		})
+		_ = server.WriteSSEEvent(w, flusher, "error", sseErrorPayload(r, err))
 	}
 }

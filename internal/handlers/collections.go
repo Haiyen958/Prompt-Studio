@@ -19,9 +19,9 @@ func NewCollectionsHandler(svc *studio.Service) *CollectionsHandler {
 }
 
 func (h *CollectionsHandler) ListCollections(w http.ResponseWriter, r *http.Request) {
-	cols, totalSaved, err := h.svc.Repo().ListCollections()
+	cols, totalSaved, err := h.svc.ListCollections()
 	if err != nil {
-		server.WriteError(w, http.StatusInternalServerError, "db_error", err.Error())
+		writeInternalError(w, r, err)
 		return
 	}
 	if cols == nil {
@@ -41,9 +41,9 @@ func (h *CollectionsHandler) CreateCollection(w http.ResponseWriter, r *http.Req
 		server.WriteError(w, http.StatusBadRequest, "invalid_json", "Dữ liệu JSON không hợp lệ")
 		return
 	}
-	col, err := h.svc.Repo().CreateCollection(req.Name)
+	col, err := h.svc.CreateCollection(req.Name)
 	if err != nil {
-		server.WriteError(w, http.StatusBadRequest, "collection_error", err.Error())
+		writeCollectionError(w, r, err)
 		return
 	}
 	server.WriteJSON(w, http.StatusCreated, col)
@@ -58,17 +58,9 @@ func (h *CollectionsHandler) RenameCollection(w http.ResponseWriter, r *http.Req
 		server.WriteError(w, http.StatusBadRequest, "invalid_json", "Dữ liệu JSON không hợp lệ")
 		return
 	}
-	col, err := h.svc.Repo().RenameCollection(id, req.Name)
+	col, err := h.svc.RenameCollection(id, req.Name)
 	if err != nil {
-		if errors.Is(err, storage.ErrNotFound) {
-			server.WriteError(w, http.StatusNotFound, "not_found", "Không tìm thấy collection")
-			return
-		}
-		if errors.Is(err, storage.ErrProtectedResource) {
-			server.WriteError(w, http.StatusForbidden, "protected_collection", err.Error())
-			return
-		}
-		server.WriteError(w, http.StatusBadRequest, "collection_error", err.Error())
+		writeCollectionError(w, r, err)
 		return
 	}
 	server.WriteJSON(w, http.StatusOK, col)
@@ -76,17 +68,18 @@ func (h *CollectionsHandler) RenameCollection(w http.ResponseWriter, r *http.Req
 
 func (h *CollectionsHandler) DeleteCollection(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	if err := h.svc.Repo().DeleteCollection(id); err != nil {
-		if errors.Is(err, storage.ErrNotFound) {
-			server.WriteError(w, http.StatusNotFound, "not_found", "Không tìm thấy collection")
-			return
-		}
-		if errors.Is(err, storage.ErrProtectedResource) {
-			server.WriteError(w, http.StatusForbidden, "protected_collection", err.Error())
-			return
-		}
-		server.WriteError(w, http.StatusInternalServerError, "db_error", err.Error())
+	if err := h.svc.DeleteCollection(id); err != nil {
+		writeCollectionError(w, r, err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// writeCollectionError keeps the historical `collection_error` code for invalid names.
+func writeCollectionError(w http.ResponseWriter, r *http.Request, err error) {
+	if errors.Is(err, studio.ErrInvalidInput) {
+		server.WriteError(w, http.StatusBadRequest, "collection_error", err.Error())
+		return
+	}
+	writeServiceError(w, r, err, "Không tìm thấy collection")
 }

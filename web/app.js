@@ -40,6 +40,9 @@
 
     // Compare
     compareAbort: null,
+
+    // Last generate/refine call, re-run by the error banner's "Thử lại".
+    retryAction: null,
     compareRawText: "",
     comparePromptText: "",
   };
@@ -700,6 +703,7 @@
     renderStudioState();
 
     const target = el("targetSelect").value;
+    state.retryAction = () => startGenerate();
     const ctrl = new AbortController();
     state.abortController = ctrl;
 
@@ -729,7 +733,7 @@
             truncated = Boolean(payload.truncated);
           },
           error(payload) {
-            showStudioError(payload.message || "Lỗi khi tạo prompt.");
+            showStudioError(payload.message || "Lỗi khi tạo prompt.", payload.code);
           },
         },
         ctrl.signal
@@ -744,7 +748,7 @@
           gotVersion = true;
         }
       } else {
-        showStudioError(err.message);
+        showStudioError(err.message, errorCode(err));
       }
     } finally {
       // No version means the server discarded the session; keep the typed request so
@@ -785,6 +789,8 @@
           : "Đang tinh chỉnh prompt…";
     setAIStreamPhase("analyzing", statusMsg);
 
+    state.retryAction = () => startRefine(instruction, source);
+    let failed = false;
     const ctrl = new AbortController();
     state.abortController = ctrl;
 
@@ -815,13 +821,17 @@
             truncated = Boolean(payload.truncated);
           },
           error(payload) {
-            showStudioError(payload.message || "Lỗi khi tinh chỉnh prompt.");
+            failed = true;
+            showStudioError(payload.message || "Lỗi khi tinh chỉnh prompt.", payload.code);
           },
         },
         ctrl.signal
       );
-      el("refineInput").value = "";
-      el("submitRefineBtn").disabled = true;
+      // Keep the instruction on failure so "Thử lại" (or editing it) is one step away.
+      if (!failed) {
+        el("refineInput").value = "";
+        el("submitRefineBtn").disabled = true;
+      }
     } catch (err) {
       if (err.name === "AbortError") {
         const detail = await reloadSessionAfterStop(sessionId, versionCountBefore + 1);
@@ -831,7 +841,7 @@
           state.activeVersionIndex = state.versions.length - 1;
         }
       } else {
-        showStudioError(err.message);
+        showStudioError(err.message, errorCode(err));
       }
     } finally {
       if (truncated) showStudioError(TRUNCATED_MSG);
@@ -1623,8 +1633,23 @@
     counter.classList.toggle("is-over", len > 8000);
   }
 
-  function showStudioError(msg) {
-    el("studioErrorText").textContent = msg;
+  // Error codes that the user fixes in Settings, and transient ones worth a retry (PLAN.md §3).
+  const SETTINGS_ERROR_CODES = new Set(["unconfigured", "auth_error"]);
+  const RETRY_ERROR_CODES = new Set(["rate_limit", "timeout", "bad_response", "network", "internal_error"]);
+
+  // errorCode normalizes thrown fetch errors: no HTTP status means the request never got an answer.
+  function errorCode(err) {
+    if (err && err.code) return err.code;
+    return err && err.status ? "http_error" : "network";
+  }
+
+  // showStudioError shows msg under the request box; `code` adds "Mở Cài đặt" / "Thử lại".
+  // The typed request and refine text are never cleared on error.
+  function showStudioError(msg, code = "") {
+    el("studioErrorText").textContent =
+      code === "network" ? "Không kết nối được tới Prompt Studio hoặc nhà cung cấp AI. Kiểm tra mạng rồi thử lại." : msg;
+    show(el("studioErrorSettingsLink"), SETTINGS_ERROR_CODES.has(code));
+    show(el("studioErrorRetryBtn"), RETRY_ERROR_CODES.has(code) && typeof state.retryAction === "function");
     show(el("studioErrorBanner"), true);
   }
 
@@ -1691,6 +1716,10 @@
       histTimer = setTimeout(loadHistorySessions, 180);
     });
     el("dismissErrorBtn").addEventListener("click", () => show(el("studioErrorBanner"), false));
+    el("studioErrorRetryBtn").addEventListener("click", () => {
+      show(el("studioErrorBanner"), false);
+      if (typeof state.retryAction === "function" && !state.streaming) state.retryAction();
+    });
 
     // Request input & Generate
     el("requestInput").addEventListener("input", updateRequestCounter);

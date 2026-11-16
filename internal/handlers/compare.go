@@ -6,9 +6,7 @@ import (
 	"io"
 	"net/http"
 
-	"prompt-studio/internal/ai"
 	"prompt-studio/internal/server"
-	"prompt-studio/internal/storage"
 	"prompt-studio/internal/studio"
 )
 
@@ -30,13 +28,9 @@ func (h *CompareHandler) CompareVersion(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	ver, sess, err := h.svc.Repo().GetVersion(versionID)
+	ver, sess, err := h.svc.GetVersion(versionID)
 	if err != nil {
-		if errors.Is(err, storage.ErrNotFound) {
-			server.WriteError(w, http.StatusNotFound, "not_found", "Không tìm thấy phiên bản prompt")
-			return
-		}
-		server.WriteError(w, http.StatusInternalServerError, "db_error", err.Error())
+		writeServiceError(w, r, err, "Không tìm thấy phiên bản prompt")
 		return
 	}
 	if err := studio.CheckComparable(ver, sess, in.Variables); err != nil {
@@ -65,9 +59,6 @@ func (h *CompareHandler) CompareVersion(w http.ResponseWriter, r *http.Request) 
 	if err := h.svc.CompareVersion(r.Context(), versionID, in.Variables, func(evt studio.SSEEvent) {
 		_ = server.WriteSSEEvent(w, flusher, evt.Event, evt.Data)
 	}); err != nil {
-		_ = server.WriteSSEEvent(w, flusher, "error", map[string]any{
-			"code":    ai.ErrorCode(err),
-			"message": err.Error(),
-		})
+		_ = server.WriteSSEEvent(w, flusher, "error", sseErrorPayload(r, err))
 	}
 }
