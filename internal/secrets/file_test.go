@@ -44,3 +44,15 @@ func TestFileStorePermissionsAndRoundTrip(t *testing.T) {
 		t.Fatalf("expected key deleted")
 	}
 }
+
+func TestKeyHintShowsOnlyLastFourCharacters(t *testing.T) {
+	for in, want := range map[string]string{
+		"sk-live-abcdef9876": "••••••••••9876",
+		"  abc  ":            "••••••••••abc",
+		"":                   "",
+	} {
+		if got := KeyHint(in); got != want {
+			t.Fatalf("KeyHint(%q) = %q, want %q", in, got, want)
+		}
+	}
+}

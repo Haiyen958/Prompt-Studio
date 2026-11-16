@@ -15,24 +15,31 @@ import (
 
 const MasterKeySize = 32 // 256-bit key for AES-256-GCM
 
-// EnsureMasterKey loads an existing 32-byte master key from path or generates
-// a new one with 0600 permissions.
-func EnsureMasterKey(path string) ([]byte, error) {
-	if data, err := os.ReadFile(path); err == nil {
-		trimmed := strings.TrimSpace(string(data))
-		if decoded, decErr := hex.DecodeString(trimmed); decErr == nil && len(decoded) == MasterKeySize {
-			_ = os.Chmod(path, 0600)
-			return decoded, nil
-		}
-		if len(data) == MasterKeySize {
-			_ = os.Chmod(path, 0600)
-			return data, nil
-		}
-		return nil, fmt.Errorf("invalid master key length in %s", path)
-	} else if !errors.Is(err, os.ErrNotExist) {
+// LoadMasterKey reads the legacy v1 master key (hex or raw 32 bytes). A missing file
+// returns an error wrapping os.ErrNotExist; it never creates one.
+func LoadMasterKey(path string) ([]byte, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
 		return nil, err
 	}
+	trimmed := strings.TrimSpace(string(data))
+	if decoded, decErr := hex.DecodeString(trimmed); decErr == nil && len(decoded) == MasterKeySize {
+		_ = os.Chmod(path, 0600)
+		return decoded, nil
+	}
+	if len(data) == MasterKeySize {
+		_ = os.Chmod(path, 0600)
+		return data, nil
+	}
+	return nil, fmt.Errorf("invalid master key length in %s", path)
+}
 
+// EnsureMasterKey loads the master key at path or creates a new one (0600).
+// Only v1 test fixtures need creation; the v1 migrator uses LoadMasterKey.
+func EnsureMasterKey(path string) ([]byte, error) {
+	if key, err := LoadMasterKey(path); err == nil || !errors.Is(err, os.ErrNotExist) {
+		return key, err
+	}
 	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		return nil, err
 	}
@@ -40,8 +47,7 @@ func EnsureMasterKey(path string) ([]byte, error) {
 	if _, err := io.ReadFull(rand.Reader, raw); err != nil {
 		return nil, err
 	}
-	encoded := []byte(hex.EncodeToString(raw))
-	if err := os.WriteFile(path, encoded, 0600); err != nil {
+	if err := os.WriteFile(path, []byte(hex.EncodeToString(raw)), 0600); err != nil {
 		return nil, err
 	}
 	return raw, nil
@@ -89,20 +95,6 @@ func DecryptAESGCM(masterKey, ciphertext, nonce []byte) (string, error) {
 		return "", err
 	}
 	return string(plain), nil
-}
-
-// KeyHint returns the last 4 characters of an API key (e.g. "••••a1b2").
-// It never returns the full key.
-func KeyHint(apiKey string) string {
-	trimmed := strings.TrimSpace(apiKey)
-	if trimmed == "" {
-		return ""
-	}
-	runes := []rune(trimmed)
-	if len(runes) <= 4 {
-		return "••••" + string(runes)
-	}
-	return "••••" + string(runes[len(runes)-4:])
 }
 
 // GenerateSessionToken creates a cryptographically random hex token for local auth.

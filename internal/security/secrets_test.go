@@ -46,7 +46,4 @@ func TestMasterKeyAndAESGCMRoundTrip(t *testing.T) {
 		t.Fatalf("decrypted mismatch: got %q, want %q", got, secret)
 	}
 
-	if hint := KeyHint(secret); hint != "••••9876" {
-		t.Fatalf("unexpected KeyHint: %q", hint)
-	}
 }

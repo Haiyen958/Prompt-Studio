@@ -88,7 +88,8 @@ func migrateLegacyV1IfNeeded(db *sql.DB, dbPath string, secretStore *secrets.Sto
 		_, _, alreadyHas, _ := secretStore.Get()
 		if !alreadyHas {
 			masterKeyPath := filepath.Join(filepath.Dir(dbPath), "master.key")
-			if mk, err := security.EnsureMasterKey(masterKeyPath); err == nil {
+			// Load only: a v1 database without master.key has no decryptable key to move.
+			if mk, err := security.LoadMasterKey(masterKeyPath); err == nil {
 				var ct, nonce []byte
 				if err := db.QueryRow(`SELECT ciphertext, nonce FROM secrets WHERE name = 'default_api_key'`).Scan(&ct, &nonce); err == nil {
 					if plain, decErr := security.DecryptAESGCM(mk, ct, nonce); decErr == nil && strings.TrimSpace(plain) != "" {
@@ -339,13 +340,4 @@ func migrateLegacyV1IfNeeded(db *sql.DB, dbPath string, secretStore *secrets.Sto
 		return err
 	}
 	return tx.Commit()
-}
-
-func normalizeTarget(t string) string {
-	switch strings.ToLower(strings.TrimSpace(t)) {
-	case "api", "agent", "chat":
-		return strings.ToLower(strings.TrimSpace(t))
-	default:
-		return "chat"
-	}
 }
