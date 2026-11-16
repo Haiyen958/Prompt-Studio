@@ -54,9 +54,11 @@ func main() {
 
 	repo := storage.NewRepo(db, secretStore)
 
-	sessionToken, err := security.GenerateSessionToken()
+	// Stable across restarts (0600 file in the data dir): open the printed URL once and
+	// the long-lived HttpOnly cookie keeps the browser authenticated.
+	sessionToken, err := security.LoadOrCreateSessionToken(filepath.Join(resolvedDir, "session.token"))
 	if err != nil {
-		log.Fatalf("Failed to generate startup session token: %v", err)
+		log.Fatalf("Failed to load or create session token: %v", err)
 	}
 
 	svc := studio.NewService(repo)

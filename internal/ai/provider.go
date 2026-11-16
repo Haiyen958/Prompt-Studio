@@ -58,7 +58,7 @@ func NewProvider(cfg ProviderConfig) (Provider, error) {
 		cfg.Timeout = 60 * time.Second
 	}
 	if cfg.MaxTokens <= 0 {
-		cfg.MaxTokens = 2048
+		cfg.MaxTokens = 2000 // keep in sync with storage.DefaultSettings()["max_tokens"]
 	}
 	if p == "mock" {
 		return NewMockProvider(cfg.Model), nil

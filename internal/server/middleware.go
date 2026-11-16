@@ -1,6 +1,7 @@
 package server
 
 import (
+	"crypto/subtle"
 	"log"
 	"net/http"
 	"net/url"
@@ -10,8 +11,23 @@ import (
 
 const (
 	SessionCookieName = "ps_token"
-	MaxBodyBytes      = 4 * 1024 * 1024 // 4 MB (supports JSON backup import & 32k pasted prompts)
+	MaxBodyBytes      = 4 * 1024 * 1024 // 4 MB (32k pasted prompts and every other JSON write)
+	// MaxImportBytes caps POST /api/import: a full backup is far larger than any other write,
+	// and GET /api/export has no size limit, so restore must accept what export produces.
+	MaxImportBytes = 32 * 1024 * 1024
+	// sessionCookieMaxAge keeps the browser signed in across restarts (the token is stable).
+	sessionCookieMaxAge = 400 * 24 * 60 * 60
+
+	importPath = "/api/import"
 )
+
+const unauthorizedPageHTML = `<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prompt Studio — cần xác thực</title></head>
+<body><main><h1>Chưa xác thực phiên làm việc</h1>
+<p>Hãy mở đường dẫn có <code>?token=…</code> được in ra ở terminal khi khởi động Prompt Studio.
+Bạn chỉ cần làm việc này một lần trên trình duyệt này.</p></main></body></html>
+`
 
 type SecurityConfig struct {
 	SessionToken string
@@ -37,10 +53,11 @@ func Middleware(cfg SecurityConfig, next http.Handler) http.Handler {
 			return
 		}
 
-		// 2. Startup ?token=... exchange into HttpOnly cookie + clean URL redirect
+		// 2. Startup ?token=... exchange into HttpOnly cookie + clean URL redirect.
+		// This is the ONLY way a browser obtains the cookie.
 		if cfg.SessionToken != "" && (r.Method == http.MethodGet || r.Method == http.MethodHead) {
 			qToken := r.URL.Query().Get("token")
-			if qToken != "" && qToken == cfg.SessionToken {
+			if qToken != "" && tokenEqual(qToken, cfg.SessionToken) {
 				setSessionCookie(w, cfg.SessionToken)
 				cleanQ := r.URL.Query()
 				cleanQ.Del("token")
@@ -54,38 +71,36 @@ func Middleware(cfg SecurityConfig, next http.Handler) http.Handler {
 				http.Redirect(w, r, target, http.StatusFound)
 				return
 			}
+		}
 
-			// Also bind HttpOnly cookie on direct same-origin local navigation when Sec-Fetch-Site is not cross-site
-			secSite := strings.ToLower(strings.TrimSpace(r.Header.Get("Sec-Fetch-Site")))
-			if secSite != "cross-site" && !strings.HasPrefix(r.URL.Path, "/api/") {
-				if c, err := r.Cookie(SessionCookieName); err != nil || c.Value != cfg.SessionToken {
-					setSessionCookie(w, cfg.SessionToken)
-				}
+		// 3. Every API call (reads included: they expose prompts and the export) and every
+		// HTML page requires the session token. Static JS/CSS stay public: they hold no data.
+		if cfg.RequireToken && cfg.SessionToken != "" && !hasValidToken(r, cfg.SessionToken) {
+			if strings.HasPrefix(r.URL.Path, "/api/") {
+				WriteError(w, http.StatusUnauthorized, "unauthorized_local_session", "Phiên làm việc cục bộ chưa được xác thực — hãy mở lại URL khởi động (có ?token=…) in ở terminal")
+				return
+			}
+			if isPagePath(r.URL.Path) {
+				w.Header().Set("Content-Type", "text/html; charset=utf-8")
+				w.WriteHeader(http.StatusUnauthorized)
+				_, _ = w.Write([]byte(unauthorizedPageHTML))
+				return
 			}
 		}
 
 		isWrite := r.Method == http.MethodPost || r.Method == http.MethodPut || r.Method == http.MethodPatch || r.Method == http.MethodDelete
 		if isWrite {
-			if cfg.RequireToken && cfg.SessionToken != "" {
-				tokenOK := false
-				if c, err := r.Cookie(SessionCookieName); err == nil && c.Value == cfg.SessionToken {
-					tokenOK = true
-				}
-				if hdr := r.Header.Get("X-Prompt-Studio-Token"); hdr != "" && hdr == cfg.SessionToken {
-					tokenOK = true
-				}
-				if !tokenOK {
-					WriteError(w, http.StatusUnauthorized, "unauthorized_local_session", "Phiên làm việc cục bộ chưa được xác thực — hãy tải lại trang từ URL khởi động")
-					return
-				}
-			}
 			// Browsers can send text/plain, form or multipart bodies cross-origin without a
 			// CORS preflight; requiring JSON closes that CSRF path for every write endpoint.
 			if !isJSONOrEmptyBody(r) {
 				WriteError(w, http.StatusUnsupportedMediaType, "unsupported_media_type", "Yêu cầu ghi phải dùng Content-Type: application/json")
 				return
 			}
-			r.Body = http.MaxBytesReader(w, r.Body, MaxBodyBytes)
+			limit := int64(MaxBodyBytes)
+			if r.Method == http.MethodPost && r.URL.Path == importPath {
+				limit = MaxImportBytes
+			}
+			r.Body = http.MaxBytesReader(w, r.Body, limit)
 		}
 
 		sw := &statusWriter{ResponseWriter: w, status: http.StatusOK}
@@ -102,9 +117,34 @@ func setSessionCookie(w http.ResponseWriter, token string) {
 		Name:     SessionCookieName,
 		Value:    token,
 		Path:     "/",
+		MaxAge:   sessionCookieMaxAge,
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
 	})
+}
+
+func tokenEqual(got, want string) bool {
+	return subtle.ConstantTimeCompare([]byte(got), []byte(want)) == 1
+}
+
+// hasValidToken accepts the HttpOnly cookie (browser) or the X-Prompt-Studio-Token header (scripts/tests).
+func hasValidToken(r *http.Request, token string) bool {
+	if c, err := r.Cookie(SessionCookieName); err == nil && tokenEqual(c.Value, token) {
+		return true
+	}
+	if hdr := r.Header.Get("X-Prompt-Studio-Token"); hdr != "" && tokenEqual(hdr, token) {
+		return true
+	}
+	return false
+}
+
+// isPagePath reports whether path serves an HTML page (which bootstraps data via the API).
+func isPagePath(path string) bool {
+	switch path {
+	case "/", "/library", "/settings", "/showcase":
+		return true
+	}
+	return strings.HasSuffix(path, ".html")
 }
 
 func isAllowedOriginAndHost(r *http.Request) bool {

@@ -613,7 +613,9 @@ func TestSecurityMiddlewareAndZeroInlineStyles(t *testing.T) {
 
 	// 5. Static HTML pages return 200 and have ZERO inline style="..." attributes
 	for _, route := range []string{"/", "/library", "/settings", "/showcase"} {
-		pageResp, pErr := client.Get(ts.URL + route)
+		pageReq, _ := http.NewRequest(http.MethodGet, ts.URL+route, nil)
+		pageReq.Header.Set("X-Prompt-Studio-Token", token)
+		pageResp, pErr := client.Do(pageReq)
 		if pErr != nil {
 			t.Fatalf("GET %s failed: %v", route, pErr)
 		}

@@ -3,9 +3,9 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -78,53 +78,31 @@ func (h *SettingsHandler) UpdateSettings(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	updates := make(map[string]string)
-	if req.Provider != nil && strings.TrimSpace(*req.Provider) != "" {
-		updates["provider"] = strings.ToLower(strings.TrimSpace(*req.Provider))
-	}
-	if req.BaseURL != nil {
-		updates["base_url"] = strings.TrimSpace(*req.BaseURL)
-	}
-	if req.Model != nil && strings.TrimSpace(*req.Model) != "" {
-		updates["model"] = strings.TrimSpace(*req.Model)
-	}
-	if req.Temperature != nil {
-		updates["temperature"] = strconv.FormatFloat(*req.Temperature, 'f', 2, 64)
-	}
-	if req.MaxTokens != nil && *req.MaxTokens > 0 {
-		updates["max_tokens"] = strconv.Itoa(*req.MaxTokens)
-	}
-	if req.TimeoutSec != nil && *req.TimeoutSec > 0 {
-		updates["timeout_sec"] = strconv.Itoa(*req.TimeoutSec)
-	}
-	if req.Theme != nil && strings.TrimSpace(*req.Theme) != "" {
-		updates["theme"] = strings.TrimSpace(*req.Theme)
-	}
-	if req.PromptLanguage != nil && strings.TrimSpace(*req.PromptLanguage) != "" {
-		updates["prompt_language"] = strings.TrimSpace(*req.PromptLanguage)
-	}
-	if req.DefaultTarget != nil && strings.TrimSpace(*req.DefaultTarget) != "" {
-		updates["default_target"] = ai.NormalizeTarget(*req.DefaultTarget)
-	}
-
-	var warning string
-	// Per PLAN.md §3: saving is NEVER blocked by skipped or failed Test Connection; only return a warning.
-	if req.APIKey != nil && strings.TrimSpace(*req.APIKey) != "" {
-		newKey := strings.TrimSpace(*req.APIKey)
-		if err := h.svc.Repo().SetAPIKey(newKey); err != nil {
-			server.WriteError(w, http.StatusInternalServerError, "key_save_error", err.Error())
+	warning, err := h.svc.UpdateSettings(studio.SettingsUpdate{
+		Provider:       req.Provider,
+		BaseURL:        req.BaseURL,
+		Model:          req.Model,
+		Temperature:    req.Temperature,
+		MaxTokens:      req.MaxTokens,
+		TimeoutSec:     req.TimeoutSec,
+		Theme:          req.Theme,
+		PromptLanguage: req.PromptLanguage,
+		DefaultTarget:  req.DefaultTarget,
+		APIKey:         req.APIKey,
+		Tested:         req.Tested,
+	})
+	if err != nil {
+		var invalid *studio.InvalidSettingError
+		if errors.As(err, &invalid) {
+			server.WriteJSON(w, http.StatusBadRequest, map[string]any{
+				"code":  "invalid_settings",
+				"field": invalid.Field,
+				"error": "Cấu hình không hợp lệ — " + invalid.Error(),
+			})
 			return
 		}
-		if req.Tested == nil || !*req.Tested {
-			warning = "Đã lưu cấu hình, nhưng API key mới chưa được kiểm tra kết nối (Test Connection)."
-		}
-	}
-
-	if len(updates) > 0 {
-		if err := h.svc.Repo().SaveSettings(updates); err != nil {
-			server.WriteError(w, http.StatusInternalServerError, "settings_save_error", err.Error())
-			return
-		}
+		server.WriteError(w, http.StatusInternalServerError, "settings_save_error", err.Error())
+		return
 	}
 
 	resp, err := h.buildSettingsResponse()
@@ -145,13 +123,16 @@ func (h *SettingsHandler) TestConnection(w http.ResponseWriter, r *http.Request)
 
 	currentCfg, _, _, _ := h.svc.LoadProviderConfig()
 	provider := defaultStr(req.Provider, currentCfg.Provider)
+	sameProvider := strings.EqualFold(provider, currentCfg.Provider)
 	baseURL := strings.TrimSpace(req.BaseURL)
-	if baseURL == "" && strings.EqualFold(provider, currentCfg.Provider) {
+	if baseURL == "" && sameProvider {
 		baseURL = currentCfg.BaseURL
 	}
 	model := defaultStr(req.Model, currentCfg.Model)
 	apiKey := strings.TrimSpace(req.APIKey)
-	if apiKey == "" {
+	// The stored key only ever goes to the endpoint it was saved for (PLAN.md §2: the key
+	// travels one way). Testing another provider or base URL requires typing the key again.
+	if apiKey == "" && sameProvider && sameEndpoint(baseURL, currentCfg.BaseURL) {
 		apiKey = currentCfg.APIKey
 	}
 
@@ -225,7 +206,8 @@ func (h *SettingsHandler) ExportData(w http.ResponseWriter, r *http.Request) {
 
 func (h *SettingsHandler) ImportData(w http.ResponseWriter, r *http.Request) {
 	var bundle storage.BackupBundle
-	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 32*1024*1024)).Decode(&bundle); err != nil {
+	// Body size is capped by server.Middleware (server.MaxImportBytes for this route).
+	if err := json.NewDecoder(r.Body).Decode(&bundle); err != nil {
 		server.WriteError(w, http.StatusBadRequest, "invalid_backup", "File sao lưu JSON không hợp lệ: "+err.Error())
 		return
 	}
@@ -249,44 +231,35 @@ func (h *SettingsHandler) buildSettingsResponse() (*SettingsResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	prov := defaultStr(settings["provider"], "openai")
-	if strings.EqualFold(prov, "mock") || strings.EqualFold(prov, "openai-compatible") {
-		if strings.EqualFold(prov, "mock") {
-			hasKey = true
-			if hint == "" {
-				hint = "••••••••••mock"
-			}
+	app := studio.ParseSettings(settings)
+	if strings.EqualFold(app.Provider, "mock") {
+		hasKey = true
+		if hint == "" {
+			hint = "••••••••••mock"
 		}
 	}
 
-	temp, _ := strconv.ParseFloat(settings["temperature"], 64)
-	if temp <= 0 {
-		temp = 0.4
-	}
-	maxTok, _ := strconv.Atoi(settings["max_tokens"])
-	if maxTok <= 0 {
-		maxTok = 2000
-	}
-	timeoutSec, _ := strconv.Atoi(settings["timeout_sec"])
-	if timeoutSec <= 0 {
-		timeoutSec = 60
-	}
-
 	return &SettingsResponse{
-		Provider:         prov,
-		BaseURL:          settings["base_url"],
-		Model:            defaultStr(settings["model"], "gpt-4o-mini"),
-		Temperature:      temp,
-		MaxTokens:        maxTok,
-		TimeoutSec:       timeoutSec,
-		Theme:            defaultStr(settings["theme"], "dark"),
-		PromptLanguage:   defaultStr(settings["prompt_language"], "match"),
-		DefaultTarget:    defaultStr(settings["default_target"], "chat"),
-		LastCollectionID: defaultStr(settings["last_collection_id"], storage.SystemCollectionID),
+		Provider:         app.Provider,
+		BaseURL:          app.BaseURL,
+		Model:            app.Model,
+		Temperature:      app.Temperature,
+		MaxTokens:        app.MaxTokens,
+		TimeoutSec:       app.TimeoutSec,
+		Theme:            app.Theme,
+		PromptLanguage:   app.PromptLanguage,
+		DefaultTarget:    app.DefaultTarget,
+		LastCollectionID: app.LastCollectionID,
 		HasKey:           hasKey,
 		KeyHint:          hint,
 		MockMode:         h.svc.MockMode(),
 	}, nil
+}
+
+// sameEndpoint compares base URLs ignoring surrounding spaces, trailing slashes and case.
+func sameEndpoint(a, b string) bool {
+	norm := func(s string) string { return strings.ToLower(strings.TrimRight(strings.TrimSpace(s), "/")) }
+	return norm(a) == norm(b)
 }
 
 func defaultStr(v, fb string) string {

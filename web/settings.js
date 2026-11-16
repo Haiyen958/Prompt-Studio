@@ -28,6 +28,13 @@
       .replace(/"/g, "&quot;");
   }
 
+  // numberOr parses a numeric input, using fallback only for empty/non-numeric values.
+  function numberOr(raw, fallback) {
+    const s = String(raw ?? "").trim();
+    const n = Number(s);
+    return s !== "" && Number.isFinite(n) ? n : fallback;
+  }
+
   function syncProviderUI() {
     const prov = el("providerSelect").value;
     const isCompat = prov === "openai-compatible";
@@ -121,7 +128,8 @@
       provider: el("providerSelect").value,
       baseUrl: el("baseUrlInput").value.trim(),
       model: el("modelInput").value.trim(),
-      temperature: Number(el("temperatureInput").value) || 0.4,
+      // 0 is a valid temperature: only fall back when the field is empty or not a number.
+      temperature: numberOr(el("temperatureInput").value, 0.4),
       maxTokens: Number(el("maxTokensInput").value) || 2000,
       timeoutSec: Number(el("timeoutInput").value) || 60,
       promptLanguage: el("promptLanguageSelect").value,

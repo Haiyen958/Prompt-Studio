@@ -23,12 +23,16 @@ Không làm: chọn model theo phiên, multi-agent, chat tự do, marketplace, v
 ## 2. Triển khai và bảo mật
 
 - Một binary Go, lắng nghe `127.0.0.1:7788`, một người dùng.
-- Lúc khởi động in URL kèm token ngẫu nhiên; lần mở đầu đổi token thành cookie HttpOnly.
+- Lúc khởi động in URL kèm token (ngẫu nhiên lần đầu, lưu cố định ở `~/.prompt-studio/session.token`, quyền 0600). Mở URL này một lần thì token được đổi thành cookie HttpOnly sống lâu; đây là cách duy nhất để có cookie.
+- Mọi `/api/*` (cả đọc lẫn ghi) và các trang HTML đều cần token; chỉ file JS/CSS tĩnh là công khai.
+- Test Connection chỉ dùng key đã lưu khi provider và Base URL trùng cấu hình đã lưu; đổi endpoint thì phải nhập lại key.
 - Mọi request kiểm tra `Host` và `Origin` (chặn DNS rebinding và trang khác gọi vào). `Origin` phải khớp đúng `host:port` của app; cổng localhost khác cũng bị coi là trang khác.
 - Request ghi có body bắt buộc `Content-Type: application/json` (chặn CSRF qua form/text/plain không cần preflight); sai thì trả 415.
 - API key lưu ở `~/.prompt-studio/secrets.json`, quyền 0600. Không mã hóa ở chế độ local.
 - Key đi một chiều: backend chỉ trả `hasKey` và 4 ký tự cuối. Không log key hay header Authorization.
 - Lưu cấu hình không phụ thuộc Test Connection (test thất bại vẫn lưu được, kèm cảnh báo).
+- Giới hạn body: 4 MB cho mọi yêu cầu ghi, riêng `POST /api/import` 32 MB.
+- Settings được kiểm tra trước khi lưu (lỗi thì không lưu gì): temperature 0–2, max output tokens 128–16.384, timeout 5–300 giây, provider/giao diện/ngôn ngữ/đích dùng thuộc danh sách cho phép.
 - Giới hạn: yêu cầu 8.000 ký tự, prompt dán vào 32.000 ký tự, timeout LLM 60 giây tính theo thời gian chờ (chờ token đầu tiên và khoảng lặng giữa hai đoạn stream), không tính tổng thời gian stream.
 - Settings có xuất và nhập toàn bộ dữ liệu ra một file JSON.
 

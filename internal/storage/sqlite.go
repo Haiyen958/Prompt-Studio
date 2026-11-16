@@ -81,6 +81,24 @@ func OpenDB(dbPath string, secretStore ...*secrets.Store) (*sql.DB, error) {
 	return db, nil
 }
 
+// DefaultSettings is the single source of default values for the settings table.
+// They are seeded on open (INSERT OR IGNORE) and used as fallbacks when a stored value
+// is missing or unparsable (see studio.ParseSettings).
+func DefaultSettings() map[string]string {
+	return map[string]string{
+		"provider":           "openai",
+		"base_url":           "",
+		"model":              "gpt-4o-mini",
+		"temperature":        "0.4",
+		"max_tokens":         "2000",
+		"timeout_sec":        "60",
+		"theme":              "dark",
+		"prompt_language":    "match",
+		"default_target":     "chat",
+		"last_collection_id": SystemCollectionID,
+	}
+}
+
 func applyV2Schema(db *sql.DB) error {
 	statements := strings.Split(v2SchemaSQL, ";")
 	for _, stmt := range statements {
@@ -109,19 +127,7 @@ func applyV2Schema(db *sql.DB) error {
 		return fmt.Errorf("seed system collection: %w", err)
 	}
 
-	defaults := map[string]string{
-		"provider":           "openai",
-		"base_url":           "",
-		"model":              "gpt-4o-mini",
-		"temperature":        "0.4",
-		"max_tokens":         "2000",
-		"timeout_sec":        "60",
-		"theme":              "dark",
-		"language":           "match",
-		"default_target":     "chat",
-		"last_collection_id": SystemCollectionID,
-	}
-	for k, v := range defaults {
+	for k, v := range DefaultSettings() {
 		if _, err := db.Exec(`INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)`, k, v); err != nil {
 			return fmt.Errorf("seed setting %s: %w", k, err)
 		}

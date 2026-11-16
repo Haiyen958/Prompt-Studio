@@ -2,6 +2,25 @@
 
 All notable approved changes, plans, and decisions for **Prompt Studio** are documented in this file.
 
+## [Unreleased] — 2026-11-16 (`P007-audit-p0-hardening`)
+
+### Decisions Locked
+- **`D-P007-1`** (supersedes `D-P005-3`): stable session token in `<data-dir>/session.token` (0600); only the printed `?token=` URL hands out the (400-day) HttpOnly cookie; all `/api/*` requests and HTML pages require it.
+
+### Security
+- `internal/server/middleware.go`: any local `GET /` used to receive the token cookie, and `GET /api/*` (including `/api/export`) needed no token. Reads and pages now require the token.
+- `internal/handlers/settings.go`: Test Connection no longer sends the stored API key to a different provider/Base URL.
+
+### Fixed
+- `POST /api/import`: backups larger than 4 MB were rejected by the generic write cap; import now allows 32 MB.
+- `POST /api/sessions/{id}/versions`: a `parentId` from another session was stored as the parent (unknown ids returned 500); both now return 400 `version_mismatch`. Logic moved to `studio.Service.CreateManualVersion`.
+- Temperature `0` was silently replaced by `0.4` (backend parse and `web/settings.js`).
+
+### Changed
+- `PUT /api/settings` validates the whole update first and returns 400 `invalid_settings` with `field`; nothing is written on error.
+- Settings defaults have one source (`storage.DefaultSettings`); the unused `language` seed key is now `prompt_language`.
+- `go.mod`: removed 7 unused direct modules; `modernc.org/sqlite` and `goccy/go-yaml` are now direct.
+
 ## [Unreleased] — 2026-11-16 (`P006-ui-audit`)
 
 ### Decisions Locked

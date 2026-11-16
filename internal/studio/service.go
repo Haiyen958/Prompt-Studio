@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -116,27 +115,17 @@ func (s *Service) LoadProviderConfig() (ai.ProviderConfig, string, bool, error) 
 		return ai.ProviderConfig{}, "", false, err
 	}
 
-	temp, _ := strconv.ParseFloat(settings["temperature"], 64)
-	if temp <= 0 {
-		temp = 0.4
-	}
-	maxTok, _ := strconv.Atoi(settings["max_tokens"])
-	if maxTok <= 0 {
-		maxTok = 2000
-	}
-	timeoutSec, _ := strconv.Atoi(settings["timeout_sec"])
-	if timeoutSec <= 0 {
-		timeoutSec = 60
-	}
-
+	app := ParseSettings(settings)
 	cfg := ai.ProviderConfig{
+		// Provider and model stay raw: an empty model lets ai.NewProvider pick the
+		// provider-specific default instead of the OpenAI one.
 		Provider:    settings["provider"],
 		BaseURL:     settings["base_url"],
 		Model:       settings["model"],
 		APIKey:      apiKey,
-		Temperature: temp,
-		MaxTokens:   maxTok,
-		Timeout:     time.Duration(timeoutSec) * time.Second,
+		Temperature: app.Temperature,
+		MaxTokens:   app.MaxTokens,
+		Timeout:     app.Timeout(),
 	}
 	if s.mockMode {
 		cfg.Provider = "mock"
@@ -166,6 +155,57 @@ func ValidatePasteText(content string) error {
 		return ErrPasteTooLong
 	}
 	return nil
+}
+
+// ErrManualContentEmpty is returned when a manual edit has no content.
+var ErrManualContentEmpty = errors.New("nội dung prompt không được để trống")
+
+// CreateManualVersion appends a hand-edited version. parentID, when given, must be a
+// version of the same session (storage.ErrVersionMismatch otherwise); when empty the
+// latest version is the parent. The new version inherits the parent's assumptions and target.
+func (s *Service) CreateManualVersion(sessionID, parentID, content, instruction string) (*storage.PromptVersion, error) {
+	content = strings.TrimSpace(content)
+	if content == "" {
+		return nil, ErrManualContentEmpty
+	}
+	detail, err := s.repo.GetSessionDetail(sessionID, false)
+	if err != nil {
+		return nil, err
+	}
+
+	var parent *storage.PromptVersion
+	parentID = strings.TrimSpace(parentID)
+	if parentID != "" {
+		pv, _, pErr := s.repo.GetVersion(parentID)
+		if errors.Is(pErr, storage.ErrNotFound) || (pErr == nil && pv.SessionID != sessionID) {
+			return nil, storage.ErrVersionMismatch
+		}
+		if pErr != nil {
+			return nil, pErr
+		}
+		parent = pv
+	} else if len(detail.Versions) > 0 {
+		parent = &detail.Versions[len(detail.Versions)-1]
+	}
+
+	instr := strings.TrimSpace(instruction)
+	if instr == "" {
+		instr = "Sửa tay"
+	}
+	ver := storage.PromptVersion{
+		SessionID:       sessionID,
+		Source:          "manual",
+		Instruction:     instr,
+		Content:         content,
+		TemplateVersion: "manual",
+		Model:           "manual",
+	}
+	if parent != nil {
+		ver.ParentID = parent.ID
+		ver.Assumptions = parent.Assumptions
+		ver.Target = parent.Target
+	}
+	return s.repo.CreateVersion(ver)
 }
 
 func (s *Service) PastePrompt(in PasteInput) (*storage.Session, *storage.PromptVersion, string, error) {

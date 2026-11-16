@@ -8,3 +8,4 @@ secrets.json
 .env.*
 evals/results/*.json
 !evals/results/.gitkeep
+session.token
