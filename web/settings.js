@@ -35,9 +35,75 @@
     return s !== "" && Number.isFinite(n) ? n : fallback;
   }
 
+  const MODEL_HINT_DEFAULT =
+    "Bấm “Tải danh sách model” để chọn từ các model provider đang cung cấp, hoặc gõ Model ID.";
+  // Anthropic retires model IDs, so it has no default: the user picks from the live list.
+  const MODEL_PLACEHOLDERS = {
+    openai: "gpt-4o-mini",
+    anthropic: "Chọn model — bấm “Tải danh sách model”",
+    "openai-compatible": "llama3.1",
+    mock: "mock-prompt-engineer-v2",
+  };
+  let savedProvider = "";
+  let savedModel = "";
+
+  function setModelHint(text) {
+    el("modelHint").textContent = text || MODEL_HINT_DEFAULT;
+  }
+
+  function fillModelSuggestions(models) {
+    const list = el("modelSuggestions");
+    list.innerHTML = "";
+    for (const m of models) {
+      const opt = document.createElement("option");
+      opt.value = m.id;
+      if (m.name && m.name !== m.id) opt.label = m.name;
+      list.appendChild(opt);
+    }
+  }
+
+  // loadModels fetches the provider catalog for the values currently in the form (the
+  // stored key is only used by the server for the saved provider + Base URL).
+  async function loadModels({ quiet = false } = {}) {
+    const btn = el("loadModelsBtn");
+    btn.disabled = true;
+    btn.textContent = "Đang tải…";
+    try {
+      const res = await API.request("POST", "/api/settings/models", {
+        provider: el("providerSelect").value,
+        baseUrl: el("baseUrlInput").value.trim(),
+        apiKey: el("apiKeyInput").value.trim(),
+        timeoutSec: Number(el("timeoutInput").value) || 15,
+      });
+      if (!res.ok) {
+        fillModelSuggestions([]);
+        setModelHint(quiet ? "" : `Không tải được danh sách model: ${res.error || "lỗi không xác định"}`);
+        return;
+      }
+      const models = res.models || [];
+      fillModelSuggestions(models);
+      const current = el("modelInput").value.trim();
+      if (!current && models.length > 0) el("modelInput").focus();
+      setModelHint(
+        models.length === 0
+          ? "Provider không trả về model nào — hãy gõ Model ID."
+          : `Đã tải ${models.length} model. Bấm vào ô Model ID để chọn${
+              current && !models.some((m) => m.id === current) ? " (model hiện tại không có trong danh sách)" : ""
+            }.`
+      );
+    } catch (err) {
+      if (!quiet) setModelHint(`Không tải được danh sách model: ${err.message}`);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Tải danh sách model";
+    }
+  }
+
   function syncProviderUI() {
     const prov = el("providerSelect").value;
     const isCompat = prov === "openai-compatible";
+    el("modelInput").placeholder = MODEL_PLACEHOLDERS[prov] || "";
+    el("loadModelsBtn").disabled = false;
     el("baseUrlInput").disabled = !isCompat;
     if (!isCompat && prov !== "openai-compatible") {
       el("baseUrlInput").placeholder =
@@ -67,7 +133,9 @@
 
       el("providerSelect").value = s.provider || "openai";
       el("baseUrlInput").value = s.baseUrl || "";
-      el("modelInput").value = s.model || "gpt-4o-mini";
+      el("modelInput").value = s.model || "";
+      savedProvider = s.provider || "openai";
+      savedModel = s.model || "";
       el("temperatureInput").value = s.temperature ?? 0.4;
       el("maxTokensInput").value = s.maxTokens ?? 2000;
       el("timeoutInput").value = s.timeoutSec ?? 60;
@@ -81,6 +149,8 @@
 
       syncProviderUI();
       syncKeyDisplay(s.keyHint);
+      // Offer the live list right away when a key is already configured (silent on failure).
+      if (s.hasKey && savedProvider !== "mock") loadModels({ quiet: true });
     } catch (err) {
       showFeedback("error", `<span>Không thể tải cấu hình: ${escapeHTML(err.message)}</span>`);
     }
@@ -142,12 +212,21 @@
       payload.apiKey = typedKey;
     }
 
+    // A model belongs to one provider: a new provider (and Anthropic always) needs a chosen model.
+    if (!payload.model && payload.provider !== "mock" && (payload.provider !== savedProvider || payload.provider === "anthropic")) {
+      showFeedback("warning", "<span><strong>Hãy chọn model</strong> cho provider này — bấm “Tải danh sách model”.</span>");
+      el("modelInput").focus();
+      return;
+    }
+
     try {
       const updated = await API.request("PUT", "/api/settings", payload);
       applyThemePreference(updated.theme || "dark");
       hasStoredKey = Boolean(updated.hasKey);
       replacingKey = false;
       el("apiKeyInput").value = "";
+      savedProvider = updated.provider || payload.provider;
+      savedModel = updated.model || payload.model;
       syncKeyDisplay(updated.keyHint);
 
       if (updated.warning) {
@@ -208,20 +287,19 @@
 
     el("providerSelect").addEventListener("change", () => {
       keyTestedOk = false;
-      const prov = el("providerSelect").value;
-      if (prov === "anthropic" && el("modelInput").value === "gpt-4o-mini") {
-        el("modelInput").value = "claude-3-5-sonnet-latest";
-      } else if (prov === "openai" && el("modelInput").value.startsWith("claude")) {
-        el("modelInput").value = "gpt-4o-mini";
-      } else if (prov === "openai-compatible" && el("modelInput").value === "gpt-4o-mini") {
-        el("modelInput").value = "llama3.1";
-      }
+      // The previous provider's model and catalog do not apply to the new one
+      // (switching back to the saved provider restores its saved model).
+      el("modelInput").value = el("providerSelect").value === savedProvider ? savedModel : "";
+      fillModelSuggestions([]);
+      setModelHint("");
       syncProviderUI();
     });
 
     el("apiKeyInput").addEventListener("input", () => {
       keyTestedOk = false;
     });
+
+    el("loadModelsBtn").addEventListener("click", () => loadModels());
 
     el("replaceKeyBtn").addEventListener("click", () => {
       replacingKey = true;

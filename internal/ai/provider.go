@@ -99,7 +99,9 @@ func NewProvider(cfg ProviderConfig) (Provider, error) {
 		return &AnthropicProvider{
 			BaseURL: strings.TrimRight(baseURL, "/"),
 			APIKey:  cfg.APIKey,
-			Model:   defaultString(cfg.Model, "claude-3-5-sonnet-latest"),
+			// No default: Anthropic retires model IDs, so the user picks one from the
+			// live list in Settings (Stream/Ping return ErrModelRequired until then).
+			Model:   strings.TrimSpace(cfg.Model),
 			Timeout: cfg.Timeout,
 		}, nil
 	default:
@@ -111,6 +113,10 @@ func ErrorCode(err error) string {
 	switch {
 	case errors.Is(err, ErrNoAPIKey):
 		return "unconfigured"
+	case errors.Is(err, ErrModelRequired):
+		return "model_required"
+	case errors.Is(err, ErrModelsUnsupported):
+		return "unsupported"
 	case errors.Is(err, ErrAuth):
 		return "auth_error"
 	case errors.Is(err, ErrRateLimit):

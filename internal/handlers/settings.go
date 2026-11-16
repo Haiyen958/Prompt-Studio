@@ -120,65 +120,61 @@ func (h *SettingsHandler) TestConnection(w http.ResponseWriter, r *http.Request)
 		server.WriteError(w, http.StatusBadRequest, "invalid_json", "Dữ liệu JSON không hợp lệ")
 		return
 	}
-
-	currentCfg, _, _, _ := h.svc.LoadProviderConfig()
-	provider := defaultStr(req.Provider, currentCfg.Provider)
-	sameProvider := strings.EqualFold(provider, currentCfg.Provider)
-	baseURL := strings.TrimSpace(req.BaseURL)
-	if baseURL == "" && sameProvider {
-		baseURL = currentCfg.BaseURL
-	}
-	model := defaultStr(req.Model, currentCfg.Model)
-	apiKey := strings.TrimSpace(req.APIKey)
-	// The stored key only ever goes to the endpoint it was saved for (PLAN.md §2: the key
-	// travels one way). Testing another provider or base URL requires typing the key again.
-	if apiKey == "" && sameProvider && sameEndpoint(baseURL, currentCfg.BaseURL) {
-		apiKey = currentCfg.APIKey
-	}
-
-	timeout := 15 * time.Second
-	if req.TimeoutSec > 0 {
-		timeout = time.Duration(req.TimeoutSec) * time.Second
-	}
+	cfg := h.svc.ProbeConfig(studio.ProbeRequest(req))
 
 	start := time.Now()
-	prov, err := h.svc.
-		LoadTestProvider(ai.ProviderConfig{
-			Provider: provider,
-			BaseURL:  baseURL,
-			Model:    model,
-			APIKey:   apiKey,
-			Timeout:  timeout,
-		})
-	if err != nil {
-		server.WriteJSON(w, http.StatusOK, map[string]any{
-			"ok":        false,
-			"latencyMs": time.Since(start).Milliseconds(),
-			"code":      ai.ErrorCode(err),
-			"error":     err.Error(),
-		})
-		return
-	}
-
-	ctx, cancel := context.WithTimeout(r.Context(), timeout)
-	defer cancel()
-	pingErr := prov.Ping(ctx)
+	err := func() error {
+		prov, err := h.svc.LoadTestProvider(cfg)
+		if err != nil {
+			return err
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), cfg.Timeout)
+		defer cancel()
+		return prov.Ping(ctx)
+	}()
 	latencyMs := time.Since(start).Milliseconds()
-
-	if pingErr != nil {
-		server.WriteJSON(w, http.StatusOK, map[string]any{
-			"ok":        false,
-			"latencyMs": latencyMs,
-			"code":      ai.ErrorCode(pingErr),
-			"error":     pingErr.Error(),
-		})
+	if err != nil {
+		server.WriteJSON(w, http.StatusOK, probeFailure(r, err, latencyMs))
 		return
 	}
+	server.WriteJSON(w, http.StatusOK, map[string]any{"ok": true, "latencyMs": latencyMs})
+}
 
-	server.WriteJSON(w, http.StatusOK, map[string]any{
-		"ok":        true,
-		"latencyMs": latencyMs,
-	})
+// ListModels returns the live model catalog of the provider in the form (before saving),
+// with the same API-key policy as Test Connection. Failures are 200 {ok:false, code, error}
+// like Test Connection, so Settings can show them inline.
+func (h *SettingsHandler) ListModels(w http.ResponseWriter, r *http.Request) {
+	var req TestConnectionRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		server.WriteError(w, http.StatusBadRequest, "invalid_json", "Dữ liệu JSON không hợp lệ")
+		return
+	}
+	start := time.Now()
+	models, err := h.svc.ListModels(r.Context(), h.svc.ProbeConfig(studio.ProbeRequest(req)))
+	latencyMs := time.Since(start).Milliseconds()
+	if err != nil {
+		server.WriteJSON(w, http.StatusOK, probeFailure(r, err, latencyMs))
+		return
+	}
+	if models == nil {
+		models = []ai.ModelInfo{}
+	}
+	server.WriteJSON(w, http.StatusOK, map[string]any{"ok": true, "models": models, "latencyMs": latencyMs})
+}
+
+// probeFailure explains a failed Test Connection / model listing. Unlike generation
+// errors, unknown failures (DNS, connection refused, bad URL) are shown verbatim: they
+// are about the endpoint the user is typing, not server internals.
+func probeFailure(r *http.Request, err error, latencyMs int64) map[string]any {
+	code := ai.ErrorCode(err)
+	msg := "Không kết nối được tới provider: " + err.Error()
+	switch code {
+	case "unconfigured", "auth_error", "rate_limit", "timeout", "bad_response", "model_required":
+		msg = userMessage(r, code, err)
+	case "unsupported":
+		msg = "Provider này không hỗ trợ lấy danh sách model — hãy gõ Model ID."
+	}
+	return map[string]any{"ok": false, "latencyMs": latencyMs, "code": code, "error": msg}
 }
 
 func (h *SettingsHandler) DeleteKey(w http.ResponseWriter, r *http.Request) {
@@ -250,12 +246,6 @@ func (h *SettingsHandler) buildSettingsResponse() (*SettingsResponse, error) {
 		KeyHint:          hint,
 		MockMode:         h.svc.MockMode(),
 	}, nil
-}
-
-// sameEndpoint compares base URLs ignoring surrounding spaces, trailing slashes and case.
-func sameEndpoint(a, b string) bool {
-	norm := func(s string) string { return strings.ToLower(strings.TrimRight(strings.TrimSpace(s), "/")) }
-	return norm(a) == norm(b)
 }
 
 func defaultStr(v, fb string) string {

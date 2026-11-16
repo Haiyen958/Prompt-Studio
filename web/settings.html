@@ -47,15 +47,13 @@
 
         <div class="field">
           <label for="modelInput" class="field__label">Model ID</label>
-          <input type="text" class="input" id="modelInput" list="modelSuggestions" placeholder="gpt-4o-mini">
-          <datalist id="modelSuggestions">
-            <option value="gpt-4o-mini"></option>
-            <option value="gpt-4o"></option>
-            <option value="claude-3-5-sonnet-latest"></option>
-            <option value="claude-3-5-haiku-latest"></option>
-            <option value="llama3.1"></option>
-          </datalist>
-          <span class="field__hint">Gợi ý tự động theo provider đã chọn, có thể gõ bất kỳ model ID nào.</span>
+          <div class="cluster cluster--sm">
+            <input type="text" class="input toolbar__spacer" id="modelInput" list="modelSuggestions" autocomplete="off" placeholder="gpt-4o-mini">
+            <button type="button" class="btn btn--secondary" id="loadModelsBtn">Tải danh sách model</button>
+          </div>
+          <!-- Filled from the provider's live catalog (POST /api/settings/models). -->
+          <datalist id="modelSuggestions"></datalist>
+          <span class="field__hint" id="modelHint" role="status">Bấm “Tải danh sách model” để chọn từ các model provider đang cung cấp, hoặc gõ Model ID.</span>
         </div>
 
         <div class="field">

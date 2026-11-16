@@ -66,6 +66,7 @@ Thao tác một cú bấm:
 ### Settings (`design/settings.html`)
 
 - Provider (OpenAI, Anthropic, OpenAI-compatible), Base URL, Model ID, API key, Test Connection.
+- Model chọn trong Settings từ danh sách thật của provider (nút "Tải danh sách model", `POST /api/settings/models`), vẫn gõ tay được. Đổi provider thì phải chọn lại model; Anthropic không có model mặc định (model bị khai tử theo thời gian). Vẫn không chọn model theo phiên (§1).
 - Ngôn ngữ prompt: Theo yêu cầu (mặc định) / Tiếng Việt / English. Giao diện: Tối / Sáng / Theo hệ thống.
 - Nâng cao: temperature, max output tokens, timeout. Xuất và nhập dữ liệu.
 

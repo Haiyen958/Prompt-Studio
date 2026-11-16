@@ -56,6 +56,8 @@ func userMessage(r *http.Request, code string, err error) string {
 	switch code {
 	case "unconfigured":
 		return "Chưa cấu hình AI — hãy nhập API key trong Cài đặt."
+	case "model_required":
+		return "Chưa chọn model — hãy chọn model trong Cài đặt (bấm “Tải danh sách model”)."
 	case "auth_error":
 		return "API key không hợp lệ hoặc đã hết hạn (401/403). Kiểm tra lại trong Cài đặt."
 	case "rate_limit":

@@ -23,6 +23,7 @@ func NewRouter(svc *studio.Service, webFS fs.FS, secCfg server.SecurityConfig) h
 	mux.HandleFunc("GET /api/settings", settingsH.GetSettings)
 	mux.HandleFunc("PUT /api/settings", settingsH.UpdateSettings)
 	mux.HandleFunc("POST /api/settings/test", settingsH.TestConnection)
+	mux.HandleFunc("POST /api/settings/models", settingsH.ListModels)
 	mux.HandleFunc("DELETE /api/settings/key", settingsH.DeleteKey)
 	mux.HandleFunc("GET /api/export", settingsH.ExportData)
 	mux.HandleFunc("POST /api/import", settingsH.ImportData)

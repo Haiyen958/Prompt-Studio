@@ -56,7 +56,7 @@ func TestUpdateSettingsValidatesBeforeWriting(t *testing.T) {
 
 	// Temperature 0 is valid and must round-trip (it used to become 0.4).
 	status, out := putSettings(t, client, ts.URL, token, map[string]any{
-		"provider": "anthropic", "temperature": 0, "maxTokens": 4000, "timeoutSec": 120,
+		"provider": "anthropic", "model": "claude-test-model", "temperature": 0, "maxTokens": 4000, "timeoutSec": 120,
 		"theme": "light", "promptLanguage": "en", "defaultTarget": "agent",
 	})
 	if status != http.StatusOK {

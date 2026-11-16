@@ -36,6 +36,9 @@ func (p *AnthropicProvider) streamClient() *http.Client {
 }
 
 func (p *AnthropicProvider) Ping(ctx context.Context) error {
+	if strings.TrimSpace(p.Model) == "" {
+		return ErrModelRequired
+	}
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 
@@ -78,6 +81,9 @@ func (p *AnthropicProvider) Ping(ctx context.Context) error {
 }
 
 func (p *AnthropicProvider) Stream(ctx context.Context, r Request, onDelta func(string)) (Usage, error) {
+	if strings.TrimSpace(p.Model) == "" {
+		return Usage{}, ErrModelRequired
+	}
 	var usage Usage
 	ctx, wd, stop := startStreamWatchdog(ctx, p.Timeout)
 	defer stop()

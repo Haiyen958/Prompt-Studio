@@ -1,6 +1,7 @@
 package studio
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strconv"
@@ -170,6 +171,30 @@ func (s *Service) UpdateSettings(u SettingsUpdate) (warning string, err error) {
 		updates["default_target"] = strings.ToLower(v)
 	}
 
+	// A model ID only makes sense for the provider it belongs to: switching provider
+	// requires picking a model in the same update (except the offline mock), and
+	// Anthropic has no default model (IDs get retired).
+	stored, err := s.repo.GetSettings()
+	if err != nil {
+		return "", err
+	}
+	effProvider := strings.ToLower(strings.TrimSpace(stored["provider"]))
+	if v, ok := updates["provider"]; ok {
+		if v != effProvider && v != "mock" {
+			if _, picked := updates["model"]; !picked {
+				return "", &InvalidSettingError{"model", "hãy chọn model cho provider mới"}
+			}
+		}
+		effProvider = v
+	}
+	effModel := strings.TrimSpace(stored["model"])
+	if v, ok := updates["model"]; ok {
+		effModel = v
+	}
+	if effProvider == "anthropic" && effModel == "" {
+		return "", &InvalidSettingError{"model", "Anthropic cần chọn model"}
+	}
+
 	if key, ok := trimmedNonEmpty(u.APIKey); ok {
 		if err := s.repo.SetAPIKey(key); err != nil {
 			return "", err
@@ -201,4 +226,62 @@ func contains(list []string, v string) bool {
 		}
 	}
 	return false
+}
+
+// ProbeRequest is what Settings sends to test a connection or list models before saving.
+type ProbeRequest struct {
+	Provider   string
+	BaseURL    string
+	Model      string
+	APIKey     string
+	TimeoutSec int
+}
+
+// ProbeConfig resolves a provider config for Test Connection / model listing from the form
+// values, falling back to the saved settings. The stored API key is only used for the
+// saved provider + Base URL (PLAN.md §2: the key travels one way); probing another
+// endpoint requires typing the key again.
+func (s *Service) ProbeConfig(req ProbeRequest) ai.ProviderConfig {
+	current, _, _, _ := s.LoadProviderConfig()
+	provider := strings.TrimSpace(req.Provider)
+	if provider == "" {
+		provider = current.Provider
+	}
+	sameProvider := strings.EqualFold(provider, current.Provider)
+	baseURL := strings.TrimSpace(req.BaseURL)
+	if baseURL == "" && sameProvider {
+		baseURL = current.BaseURL
+	}
+	model := strings.TrimSpace(req.Model)
+	if model == "" && sameProvider {
+		model = current.Model
+	}
+	apiKey := strings.TrimSpace(req.APIKey)
+	if apiKey == "" && sameProvider && sameEndpoint(baseURL, current.BaseURL) {
+		apiKey = current.APIKey
+	}
+	timeout := 15 * time.Second
+	if req.TimeoutSec > 0 {
+		timeout = time.Duration(req.TimeoutSec) * time.Second
+	}
+	return ai.ProviderConfig{Provider: provider, BaseURL: baseURL, Model: model, APIKey: apiKey, Timeout: timeout}
+}
+
+// ListModels returns the model catalog of the provider described by cfg.
+func (s *Service) ListModels(ctx context.Context, cfg ai.ProviderConfig) ([]ai.ModelInfo, error) {
+	prov, err := s.providerFactory(cfg)
+	if err != nil {
+		return nil, err
+	}
+	lister, ok := prov.(ai.ModelLister)
+	if !ok {
+		return nil, ai.ErrModelsUnsupported
+	}
+	return lister.ListModels(ctx)
+}
+
+// sameEndpoint compares base URLs ignoring surrounding spaces, trailing slashes and case.
+func sameEndpoint(a, b string) bool {
+	norm := func(s string) string { return strings.ToLower(strings.TrimRight(strings.TrimSpace(s), "/")) }
+	return norm(a) == norm(b)
 }

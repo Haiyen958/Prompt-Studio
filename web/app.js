@@ -1641,7 +1641,7 @@
   }
 
   // Error codes that the user fixes in Settings, and transient ones worth a retry (PLAN.md §3).
-  const SETTINGS_ERROR_CODES = new Set(["unconfigured", "auth_error"]);
+  const SETTINGS_ERROR_CODES = new Set(["unconfigured", "auth_error", "model_required"]);
   const RETRY_ERROR_CODES = new Set(["rate_limit", "timeout", "bad_response", "network", "internal_error"]);
 
   // errorCode normalizes thrown fetch errors: no HTTP status means the request never got an answer.

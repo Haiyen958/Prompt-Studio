@@ -2,6 +2,21 @@
 
 All notable approved changes, plans, and decisions for **Prompt Studio** are documented in this file.
 
+## [Unreleased] — 2026-11-16 (`P009-settings-model-picker`)
+
+### Decisions Locked (owner)
+- **`D-P009-1`:** The model is chosen in Settings from the provider's live catalog (free typing still allowed); no per-session model choice (PLAN §1 unchanged).
+- **`D-P009-2`:** Anthropic has no default model; switching provider requires picking a model in the same save.
+
+### Added
+- `POST /api/settings/models` (`{provider, baseUrl, apiKey}` → `{ok, models:[{id,name}]}` or `{ok:false, code, error}`), same API-key policy as Test Connection. OpenAI lists chat-capable families, OpenAI-compatible lists everything, Anthropic follows pagination.
+- Settings: "Tải danh sách model" button (auto-loads when a key is saved); switching provider clears the model (switching back restores the saved one).
+
+### Changed
+- Removed the outdated `claude-3-5-sonnet-latest` default and the static model datalist. An empty Anthropic model now fails with `model_required` ("Mở Cài đặt" in the Studio banner).
+- `PUT /api/settings` returns 400 `invalid_settings` (`field: "model"`) when the provider changes without a model, or Anthropic has none.
+- Test Connection key/endpoint resolution moved to `studio.Service.ProbeConfig`; failures are explained in Vietnamese (network errors shown verbatim).
+
 ## [Unreleased] — 2026-11-16 (`P008-audit-p1-p2`)
 
 ### Added
