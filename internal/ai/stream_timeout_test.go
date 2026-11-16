@@ -129,3 +129,40 @@ func TestAnthropicStreamDetectsMaxTokens(t *testing.T) {
 		t.Fatalf("expected truncated stream with text, got truncated=%v text=%q", usage.Truncated, got.String())
 	}
 }
+
+// Official OpenAI streams request usage; OpenAI-compatible endpoints do not get the
+// extra field. The reported usage is taken from the final usage chunk.
+func TestOpenAIStreamRequestsUsageOnlyForOfficialAPI(t *testing.T) {
+	for _, compatible := range []bool{false, true} {
+		var body string
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			b := new(strings.Builder)
+			buf := make([]byte, 4096)
+			for {
+				n, err := r.Body.Read(buf)
+				b.Write(buf[:n])
+				if err != nil {
+					break
+				}
+			}
+			body = b.String()
+			w.Header().Set("Content-Type", "text/event-stream")
+			_, _ = w.Write([]byte(openAIChunk("Xin chào", "stop")))
+			_, _ = w.Write([]byte(`data: {"choices":[],"usage":{"prompt_tokens":11,"completion_tokens":3}}` + "\n\n"))
+			_, _ = w.Write([]byte("data: [DONE]\n\n"))
+		}))
+		p := &OpenAIProvider{BaseURL: srv.URL, APIKey: "k", Model: "m", Timeout: 5 * time.Second, OpenAICompatible: compatible}
+		usage, err := p.Stream(context.Background(), Request{Messages: []Message{{Role: "user", Content: "hi"}}}, func(string) {})
+		srv.Close()
+		if err != nil {
+			t.Fatalf("compatible=%v: %v", compatible, err)
+		}
+		has := strings.Contains(body, `"stream_options":{"include_usage":true}`)
+		if has == compatible {
+			t.Fatalf("compatible=%v: stream_options present = %v, body %s", compatible, has, body)
+		}
+		if usage.InputTokens != 11 || usage.OutputTokens != 3 {
+			t.Fatalf("compatible=%v: usage = %+v, want 11/3 from the usage chunk", compatible, usage)
+		}
+	}
+}

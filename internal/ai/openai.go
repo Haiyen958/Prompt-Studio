@@ -91,6 +91,12 @@ func (p *OpenAIProvider) Stream(ctx context.Context, r Request, onDelta func(str
 		"max_tokens":  r.MaxTokens,
 		"stream":      true,
 	}
+	// Official OpenAI reports real token usage in a final chunk only when asked.
+	// OpenAI-compatible servers (Ollama, LM Studio, …) may reject unknown fields, so
+	// they keep the character-based estimate below.
+	if !p.OpenAICompatible {
+		payload["stream_options"] = map[string]any{"include_usage": true}
+	}
 
 	b, err := json.Marshal(payload)
 	if err != nil {
