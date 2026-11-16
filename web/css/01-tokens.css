@@ -1,0 +1,177 @@
+/* ==========================================================================
+   1. TOKENS — Global Semantic Design Tokens (:root)
+   Default theme: Warm Graphite Dark (Prompt Studio v2 Canonical — design/tokens.css)
+   ========================================================================== */
+
+@layer tokens {
+  :root {
+    color-scheme: dark;
+
+    /* --- Colors: Surfaces & Backgrounds --- */
+    --color-bg: #111214;
+    --color-surface: #1a1c1f;
+    --color-surface-subtle: #22252a;
+    --color-surface-elevated: #22252a;
+    --color-backdrop: rgba(8, 9, 10, 0.72);
+
+    /* --- Colors: Brand, Primary & Secondary --- */
+    --color-primary: #7c9bff;
+    --color-primary-hover: #91abff;
+    --color-primary-active: #6586f5;
+    --color-on-primary: #0e1220;
+
+    --color-secondary: #22252a;
+    --color-secondary-hover: #2b2f36;
+    --color-secondary-active: #343942;
+    --color-on-secondary: #ececea;
+
+    --color-accent: #7c9bff;
+    --color-accent-soft: #1f2a4a;
+    --color-accent-border: #33406b;
+    --color-accent-text: #b9c8ff;
+
+    /* --- Colors: Typography --- */
+    --color-text-primary: #ececea;
+    --color-text-body: #dddee0;
+    --color-text-secondary: #a8abb0;
+    --color-text-muted: #8b8f96;
+
+    /* --- Colors: Borders & Dividers --- */
+    --color-border: #2a2d31;
+    --color-border-strong: #3a3e44;
+    --color-divider: #24272b;
+
+    /* --- Colors: Semantic Feedback (Success, Warning, Error, Info) --- */
+    --color-success: #8fe3a5;
+    --color-success-border: #1f4d2b;
+    --color-success-soft: #12261a;
+
+    --color-warning: #f2c66d;
+    --color-warning-border: #5a4518;
+    --color-warning-soft: #2b2210;
+
+    --color-error: #ff8a80;
+    --color-error-hover: #ffa199;
+    --color-error-border: #5a2a2a;
+    --color-error-soft: #2b1616;
+    --color-on-danger: #1f0d0d;
+
+    --color-info: #7c9bff;
+    --color-info-soft: #1f2a4a;
+
+    /* --- Colors: Variable Token Highlight (Non-AI static token tint) --- */
+    --color-var-bg: #162c28;
+    --color-var-text: #7ee2cf;
+    --color-role-system: #b9c8ff;
+    --color-role-user: #8fe3a5;
+
+    /* --- Colors: Interactive States & Focus --- */
+    --state-hover-bg: rgba(255, 255, 255, 0.045);
+    --state-active-bg: rgba(255, 255, 255, 0.085);
+    --state-disabled-opacity: 0.46;
+    --focus-ring-color: rgba(124, 155, 255, 0.45);
+    --focus-border-color: #4a5a8f;
+    --focus-ring: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--focus-ring-color);
+
+    /* --- Colors: Active AI Effects ONLY (Never use outside active AI states!) --- */
+    --ai-1: #b48cff;
+    --ai-2: #5eead4;
+
+    /* --- Spacing Scale (4px Base: --space-1 to --space-16) --- */
+    --space-1: 0.25rem;  /* 4px */
+    --space-2: 0.5rem;   /* 8px */
+    --space-3: 0.75rem;  /* 12px */
+    --space-4: 1rem;     /* 16px */
+    --space-5: 1.25rem;  /* 20px */
+    --space-6: 1.5rem;   /* 24px */
+    --space-7: 1.75rem;  /* 28px */
+    --space-8: 2rem;     /* 32px */
+    --space-9: 2.25rem;  /* 36px */
+    --space-10: 2.5rem;  /* 40px */
+    --space-11: 2.75rem; /* 44px — Mobile touch target */
+    --space-12: 3rem;    /* 48px */
+    --space-13: 3.25rem; /* 52px */
+    --space-14: 3.5rem;  /* 56px */
+    --space-15: 3.75rem; /* 60px */
+    --space-16: 4rem;    /* 64px */
+
+    /* --- Typography --- */
+    --font-sans: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+    --text-xs: 0.75rem;     /* 12px */
+    --text-sm: 0.8125rem;   /* 13px */
+    --text-base: 0.875rem;  /* 14px */
+    --text-md: 0.9375rem;   /* 15px */
+    --text-lg: 1.125rem;    /* 18px */
+    --text-xl: 1.375rem;    /* 22px — Page title (largest size in the app) */
+
+    --font-regular: 400;
+    --font-medium: 500;
+    --font-semibold: 600;
+    --font-bold: 700;
+
+    --leading-tight: 1.25;
+    --leading-snug: 1.4;
+    --leading-normal: 1.55;
+    --leading-relaxed: 1.65;
+
+    --tracking-tight: -0.01em;
+    --tracking-normal: 0;
+    --tracking-wide: 0.04em;
+
+    /* --- Layout Tokens & Reference Breakpoints --- */
+    --bp-sm: 640px;
+    --bp-md: 768px;
+    --bp-lg: 1024px;
+    --bp-xl: 1280px;
+
+    --container-sm: 40rem;    /* 640px — Settings */
+    --container-md: 48.75rem; /* 780px — Studio workspace */
+    --container-lg: 70rem;    /* 1120px — Compare & Showcase */
+    --container-xl: 90rem;    /* 1440px */
+
+    --sidebar-width: 16.5rem; /* 264px */
+    --header-height: 3.5rem;  /* 56px */
+    --content-padding: clamp(var(--space-4), 3vw, var(--space-8));
+    --grid-gap: var(--space-4);
+
+    /* --- Visual Tokens: Radius, Border, Shadow, Motion, Z-Index --- */
+    --border-thin: 1px;
+    --border-thick: 1.5px;
+
+    /* Flat enterprise UI: 0–4px corners. --radius-full is reserved for
+       assumption/starter chips, status dots and spinners. */
+    --radius-xs: 0.125rem;  /* 2px — Badge, inline code, var pill */
+    --radius-sm: 0.25rem;   /* 4px */
+    --radius-md: 0.25rem;   /* 4px — Control radius */
+    --radius-lg: 0.25rem;   /* 4px — Card radius */
+    --radius-xl: 0.375rem;  /* 6px — Modal radius */
+    --radius-full: 9999px;
+
+    /* --- Control Heights (3 desktop sizes + 1 touch size) --- */
+    --control-sm: 1.75rem;    /* 28px — Icon buttons inside lists */
+    --control-md: 2rem;       /* 32px — Toolbar buttons, chips, small inputs */
+    --control-lg: 2.25rem;    /* 36px — Form inputs, primary actions */
+    --control-touch: 2.75rem; /* 44px — Minimum touch target below 1024px */
+
+    --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.24);
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.32);
+    --shadow-md: 0 10px 28px rgba(0, 0, 0, 0.44);
+    --shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.52);
+
+    --duration-fast: 120ms;
+    --duration-normal: 220ms;
+    --duration-slow: 320ms;
+    --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+
+    --z-base: 1;
+    --z-sticky: 10;
+    --z-header: 20;
+    --z-dropdown: 30;
+    --z-drawer: 40;
+    --z-modal: 50;
+    --z-popover: 60;
+    --z-tooltip: 70;
+  }
+}

@@ -1,0 +1,87 @@
+/* ==========================================================================
+   SHOWCASE PAGE STYLES — Loaded exclusively on /showcase
+   Demonstrates selective page-level CSS loading without polluting core app CSS.
+   ========================================================================== */
+
+@layer pages {
+  .showcase-header {
+    position: sticky;
+    top: 0;
+    z-index: var(--z-header);
+    background-color: var(--color-surface);
+    border-bottom: var(--border-thin) solid var(--color-border);
+    padding-block: var(--space-3);
+  }
+
+  .swatch {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: var(--border-thin) solid var(--color-border);
+    border-radius: var(--radius-md);
+    background-color: var(--color-surface);
+  }
+
+  .swatch__preview {
+    height: 3.5rem;
+    border-bottom: var(--border-thin) solid var(--color-border);
+  }
+
+  .swatch__meta {
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--text-xs);
+  }
+
+  .swatch--bg .swatch__preview { background-color: var(--color-bg); }
+  .swatch--surface .swatch__preview { background-color: var(--color-surface); }
+  .swatch--subtle .swatch__preview { background-color: var(--color-surface-subtle); }
+  .swatch--elevated .swatch__preview { background-color: var(--color-surface-elevated); }
+  .swatch--primary .swatch__preview { background-color: var(--color-primary); }
+  .swatch--secondary .swatch__preview { background-color: var(--color-secondary); }
+  .swatch--accent .swatch__preview { background-color: var(--color-accent); }
+  .swatch--success .swatch__preview { background-color: var(--color-success); }
+  .swatch--warning .swatch__preview { background-color: var(--color-warning); }
+  .swatch--error .swatch__preview { background-color: var(--color-error); }
+  .swatch--info .swatch__preview { background-color: var(--color-info); }
+
+  .space-demo-row {
+    display: grid;
+    grid-template-columns: 7rem 4rem minmax(0, 1fr);
+    align-items: center;
+    gap: var(--space-3);
+    font-size: var(--text-xs);
+  }
+
+  .space-bar {
+    height: 0.75rem;
+    border-radius: var(--radius-xs);
+    background-color: var(--color-primary);
+  }
+
+  .space-bar--1  { width: var(--space-1); }
+  .space-bar--2  { width: var(--space-2); }
+  .space-bar--3  { width: var(--space-3); }
+  .space-bar--4  { width: var(--space-4); }
+  .space-bar--6  { width: var(--space-6); }
+  .space-bar--8  { width: var(--space-8); }
+  .space-bar--12 { width: var(--space-12); }
+  .space-bar--16 { width: var(--space-16); }
+
+  .grid-demo-cell {
+    padding: var(--space-3);
+    border-radius: var(--radius-md);
+    background-color: var(--color-accent-soft);
+    border: var(--border-thin) solid var(--color-primary);
+    color: var(--color-accent-text);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    text-align: center;
+  }
+
+  .type-sample--xl  { font-size: var(--text-xl); font-weight: var(--font-semibold); }
+  .type-sample--lg  { font-size: var(--text-lg); font-weight: var(--font-semibold); }
+  .type-sample--md  { font-size: var(--text-md); font-weight: var(--font-medium); }
+  .type-sample--base { font-size: var(--text-base); }
+  .type-sample--sm  { font-size: var(--text-sm); color: var(--color-text-secondary); }
+  .type-sample--xs  { font-size: var(--text-xs); color: var(--color-text-muted); }
+}

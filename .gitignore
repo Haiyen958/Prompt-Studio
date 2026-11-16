@@ -1,0 +1,10 @@
+bin/
+*.db
+*.db-shm
+*.db-wal
+*.key
+secrets.json
+.env
+.env.*
+evals/results/*.json
+!evals/results/.gitkeep

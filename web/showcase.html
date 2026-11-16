@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Showcase Hệ thống CSS — Prompt Studio</title>
+  <link rel="stylesheet" href="/style.css" />
+  <link rel="stylesheet" href="/css/showcase.css" />
+</head>
+<body>
+  <!-- Sticky Showcase Topbar -->
+  <header class="showcase-header">
+    <div class="container toolbar">
+      <div class="cluster cluster--md">
+        <a href="/" class="brand">
+          <span class="brand__mark">PS</span>
+          <span>Hệ thống Thiết kế Prompt Studio</span>
+        </a>
+        <span class="badge badge--primary">Vanilla CSS · @layer · Zero Framework</span>
+      </div>
+      <div class="toolbar__group">
+        <button id="themeToggleBtn" class="btn btn--secondary btn--sm" type="button">
+          Đổi giao diện Sáng
+        </button>
+        <a href="/" class="btn btn--secondary btn--sm">← Quay lại Studio</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="page-layout">
+    <div class="container stack stack--xl">
+      <!-- Intro -->
+      <section class="stack stack--sm">
+        <h1>Showcase Design Tokens &amp; Component v2</h1>
+        <p>
+          Tài liệu trực quan cho hệ thống CSS Custom Properties (Warm Graphite &amp; Warm Paper), Lưới 12 cột Mobile-First, 10 nhóm BEM Component tái sử dụng và 4 trạng thái khung AI v2.
+        </p>
+        <div class="cluster">
+          <a href="#tokens" class="chip">1. Design Tokens</a>
+          <a href="#layout" class="chip">2. Lưới &amp; Bố cục</a>
+          <a href="#buttons" class="chip">3. Nút bấm</a>
+          <a href="#forms" class="chip">4. Biểu mẫu</a>
+          <a href="#cards" class="chip">5. Card &amp; Khung AI 4 trạng thái</a>
+          <a href="#overlays" class="chip">6. Modal, Dropdown &amp; Tooltip</a>
+          <a href="#nav" class="chip">7. Tabs &amp; Điều hướng</a>
+          <a href="#feedback" class="chip">8. Badge, Giả định &amp; Cảnh báo</a>
+          <a href="#tables" class="chip">9. Bảng, Bộ lọc &amp; Phân trang</a>
+          <a href="#states" class="chip">10. Trạng thái tải &amp; Rỗng</a>
+        </div>
+      </section>
+
+      <!-- 1. DESIGN TOKENS -->
+      <section id="tokens" class="stack">
+        <h2>1. Design Tokens (Màu sắc, Khoảng cách &amp; Chữ viết)</h2>
+
+        <div class="grid-auto-fit">
+          <div class="swatch swatch--bg"><div class="swatch__preview"></div><div class="swatch__meta"><strong>Background</strong><br /><code>--color-bg</code></div></div>
+          <div class="swatch swatch--surface"><div class="swatch__preview"></div><div class="swatch__meta"><strong>Surface</strong><br /><code>--color-surface</code></div></div>
+          <div class="swatch swatch--subtle"><div class="swatch__preview"></div><div class="swatch__meta"><strong>Surface Subtle</strong><br /><code>--color-surface-subtle</code></div></div>
+          <div class="swatch swatch--elevated"><div class="swatch__preview"></div><div class="swatch__meta"><strong>Elevated Surface</strong><br /><code>--color-surface-elevated</code></div></div>
+          <div class="swatch swatch--primary"><div class="swatch__preview"></div><div class="swatch__meta"><strong>Primary</strong><br /><code>--color-primary</code></div></div>
+          <div class="swatch swatch--secondary"><div class="swatch__preview"></div><div class="swatch__meta"><strong>Secondary</strong><br /><code>--color-secondary</code></div></div>
+          <div class="swatch swatch--accent"><div class="swatch__preview"></div><div class="swatch__meta"><strong>Accent</strong><br /><code>--color-accent</code></div></div>
+          <div class="swatch swatch--success"><div class="swatch__preview"></div><div class="swatch__meta"><strong>Success</strong><br /><code>--color-success</code></div></div>
+          <div class="swatch swatch--warning"><div class="swatch__preview"></div><div class="swatch__meta"><strong>Warning</strong><br /><code>--color-warning</code></div></div>
+          <div class="swatch swatch--error"><div class="swatch__preview"></div><div class="swatch__meta"><strong>Error / Danger</strong><br /><code>--color-error</code></div></div>
+          <div class="swatch swatch--info"><div class="swatch__preview"></div><div class="swatch__meta"><strong>Info</strong><br /><code>--color-info</code></div></div>
+        </div>
+
+        <div class="grid-cols-2">
+          <div class="card stack stack--sm">
+            <div class="card__title">Thang khoảng cách cơ sở 4px</div>
+            <div class="space-demo-row"><code>--space-1</code><span>4px</span><div class="space-bar space-bar--1"></div></div>
+            <div class="space-demo-row"><code>--space-2</code><span>8px</span><div class="space-bar space-bar--2"></div></div>
+            <div class="space-demo-row"><code>--space-3</code><span>12px</span><div class="space-bar space-bar--3"></div></div>
+            <div class="space-demo-row"><code>--space-4</code><span>16px</span><div class="space-bar space-bar--4"></div></div>
+            <div class="space-demo-row"><code>--space-6</code><span>24px</span><div class="space-bar space-bar--6"></div></div>
+            <div class="space-demo-row"><code>--space-8</code><span>32px</span><div class="space-bar space-bar--8"></div></div>
+            <div class="space-demo-row"><code>--space-12</code><span>48px</span><div class="space-bar space-bar--12"></div></div>
+            <div class="space-demo-row"><code>--space-16</code><span>64px</span><div class="space-bar space-bar--16"></div></div>
+          </div>
+
+          <div class="card stack stack--sm">
+            <div class="card__title">Thang Typography</div>
+            <div class="type-sample--xl">--text-xl (22px) · Tiêu đề trang</div>
+            <div class="type-sample--lg">--text-lg (18px) · Tiêu đề phân mục</div>
+            <div class="type-sample--md">--text-md (15px) · Nội dung dẫn nhập</div>
+            <div class="type-sample--base">--text-base (14px) · Văn bản chuẩn</div>
+            <div class="type-sample--sm">--text-sm (13px) · Nhãn điều khiển</div>
+            <div class="type-sample--xs">--text-xs (12px) · Metadata &amp; gợi ý</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. LAYOUT & 12-COLUMN GRID -->
+      <section id="layout" class="stack">
+        <h2>2. Hệ thống Bố cục &amp; Lưới 12 cột Responsive</h2>
+        <div class="card stack">
+          <div class="card__subtitle">Màn hình nhỏ (&lt; 768px) tự động xếp dọc; Tablet/Desktop chia cột linh hoạt:</div>
+          <div class="grid">
+            <div class="col-span-12 grid-demo-cell">.col-span-12</div>
+            <div class="col-span-6 grid-demo-cell">.col-span-6</div>
+            <div class="col-span-6 grid-demo-cell">.col-span-6</div>
+            <div class="col-span-4 grid-demo-cell">.col-span-4</div>
+            <div class="col-span-4 grid-demo-cell">.col-span-4</div>
+            <div class="col-span-4 grid-demo-cell">.col-span-4</div>
+            <div class="col-span-3 grid-demo-cell">.col-span-3</div>
+            <div class="col-span-9 grid-demo-cell">.col-span-9</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. BUTTONS -->
+      <section id="buttons" class="stack">
+        <h2>3. Nút bấm (Biến thể, Kích thước &amp; Trạng thái)</h2>
+        <div class="card stack">
+          <div class="stack stack--xs">
+            <small>Biến thể</small>
+            <div class="cluster">
+              <button class="btn btn--primary" type="button">Primary</button>
+              <button class="btn btn--secondary" type="button">Secondary</button>
+              <button class="btn" type="button">Default</button>
+              <button class="btn btn--secondary" type="button" aria-pressed="true">Đã lưu (aria-pressed)</button>
+              <button class="btn btn--ghost" type="button">Ghost</button>
+              <button class="btn btn--danger" type="button">Danger</button>
+              <button class="btn btn--danger-outline" type="button">Danger outline</button>
+              <button class="btn btn--primary" type="button" disabled>Disabled</button>
+            </div>
+          </div>
+
+          <div class="stack stack--xs">
+            <small>Kích thước &amp; Nút biểu tượng</small>
+            <div class="cluster">
+              <button class="btn btn--primary btn--sm" type="button">Nhỏ (.btn--sm)</button>
+              <button class="btn btn--primary" type="button">Tiêu chuẩn</button>
+              <button class="btn btn--primary btn--lg" type="button">Lớn (.btn--lg)</button>
+              <button class="btn btn--secondary btn--icon" type="button" aria-label="Cài đặt"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg></button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. FORM CONTROLS -->
+      <section id="forms" class="stack">
+        <h2>4. Ô nhập liệu, Textarea, Select &amp; Trạng thái lỗi</h2>
+        <div class="card grid-cols-2">
+          <div class="field">
+            <label for="demoInput" class="field__label">Ô nhập tiêu chuẩn</label>
+            <input id="demoInput" type="text" class="input" placeholder="Nhập tên prompt…" />
+            <span class="field__hint">Khoảng cách 4px nhất quán và vòng focus-visible rõ nét.</span>
+          </div>
+
+          <div class="field">
+            <label for="demoSelect" class="field__label">Chọn đích sử dụng (3 targets v2)</label>
+            <select id="demoSelect" class="select">
+              <option>Chat (ChatGPT / Claude / Gemini)</option>
+              <option>System prompt cho API</option>
+              <option>Coding Agent</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="demoErrorInput" class="field__label">Trạng thái lỗi hợp lệ</label>
+            <input id="demoErrorInput" type="text" class="input input--error" value="invalid-url" />
+            <span class="field__error">Base URL phải bắt đầu bằng http:// hoặc https://</span>
+          </div>
+
+          <div class="field">
+            <label for="demoDisabledInput" class="field__label">Ô chỉ đọc / vô hiệu hóa</label>
+            <input id="demoDisabledInput" type="text" class="input" value="••••••••••a1b2" disabled />
+          </div>
+
+          <div class="col-span-full field">
+            <label for="demoTextarea" class="field__label">Textarea Monospace cho Prompt</label>
+            <textarea id="demoTextarea" class="textarea text-mono" placeholder="Bạn là kỹ sư hệ thống giàu kinh nghiệm…"></textarea>
+          </div>
+        </div>
+      </section>
+
+      <!-- 5. CARDS, PANELS & 4-STATE AI INPUT FRAME -->
+      <section id="cards" class="stack">
+        <h2>5. Card, Khối API &amp; Khung AI 4 trạng thái (v2)</h2>
+        <div class="grid-cols-3">
+          <div class="card">
+            <div class="card__header">
+              <span class="card__title">Default Card</span>
+              <span class="badge">Surface</span>
+            </div>
+            <p class="card__body">Khung chứa chuẩn cho vùng làm việc và thiết lập kết nối.</p>
+          </div>
+
+          <div class="card card--subtle">
+            <div class="card__header">
+              <span class="card__title">Subtle Card</span>
+              <span class="badge badge--info">Subtle</span>
+            </div>
+            <p class="card__body">Khung phụ cho bộ nhập biến thử nghiệm và thông tin phụ.</p>
+          </div>
+
+          <div class="card card--interactive is-active">
+            <div class="card__header">
+              <span class="card__title">Interactive Active</span>
+              <span class="badge badge--primary">Đang chọn</span>
+            </div>
+            <p class="card__body">Dùng cho danh sách Thư viện và phiên làm việc đang mở.</p>
+          </div>
+        </div>
+
+        <div class="card stack">
+          <div class="cluster cluster--between">
+            <div>
+              <div class="card__title">Xem thử 4 trạng thái AI v2 (Idle · Focused · Analyzing · Streaming)</div>
+              <div class="card__subtitle">Màu <code>--ai-1</code> và <code>--ai-2</code> chỉ xuất hiện khi AI đang phân tích hoặc stream kết quả:</div>
+            </div>
+            <div class="segmented" role="group" aria-label="Trạng thái khung AI">
+              <button type="button" class="segmented__btn is-active" data-demo-ai="idle">1. Idle</button>
+              <button type="button" class="segmented__btn" data-demo-ai="focused">2. Focused</button>
+              <button type="button" class="segmented__btn" data-demo-ai="analyzing">3. Analyzing</button>
+              <button type="button" class="segmented__btn" data-demo-ai="streaming">4. Streaming</button>
+            </div>
+          </div>
+
+          <div id="demoAiFrame" class="ai-frame">
+            <label for="demoAiTextarea" class="ai-frame__label">Yêu cầu của bạn</label>
+            <textarea id="demoAiTextarea" class="ai-frame__textarea" rows="2">Phân loại email hỗ trợ khách hàng thành JSON cho webhook xử lý tự động.</textarea>
+            <div class="ai-frame__footer">
+              <span id="demoAiStatus" class="cluster cluster--xs is-hidden">
+                <span class="ai-dot" aria-hidden="true"></span>
+                <span class="ai-shimmer">Đang phân tích yêu cầu…</span>
+              </span>
+              <span class="char-counter">72 / 8.000</span>
+            </div>
+          </div>
+
+          <div id="demoResultCard" class="result-card">
+            <div class="result-card__header">
+              <span class="badge badge--primary">System prompt cho API</span>
+              <span class="version-pill">Phiên bản 1 / 1</span>
+            </div>
+            <div class="result-card__body">
+              <div class="api-blocks">
+                <div class="api-block">
+                  <div class="api-block__header">
+                    <span class="api-block__role api-block__role--system">system</span>
+                    <span class="api-block__hint">Chỉ dẫn cố định cho mô hình</span>
+                  </div>
+                  <div class="api-block__body">
+                    Bạn là bộ phân loại email hỗ trợ khách hàng chính xác, chỉ trả về JSON hợp lệ.
+                  </div>
+                </div>
+                <div class="api-block">
+                  <div class="api-block__header">
+                    <span class="api-block__role api-block__role--user">user</span>
+                    <span class="api-block__hint">Mẫu dữ liệu kèm biến động</span>
+                  </div>
+                  <div class="api-block__body api-block__body--mono">Phân loại nội dung email sau: <span class="var-pill">{{email_content}}</span><span id="demoStreamCaret" class="ai-caret is-hidden" aria-hidden="true"></span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 6. MODAL, DROPDOWN, POPOVER & TOOLTIP -->
+      <section id="overlays" class="stack">
+        <h2>6. Modal, Dialog, Dropdown, Popover &amp; Tooltip</h2>
+        <div class="card cluster cluster--lg">
+          <button id="openDemoModalBtn" class="btn btn--primary" type="button">Mở hộp thoại Modal</button>
+
+          <div id="demoDropdown" class="dropdown">
+            <button id="toggleDropdownBtn" class="btn btn--secondary" type="button">Thao tác ▾</button>
+            <div class="dropdown__menu" role="menu">
+              <button class="dropdown__item" type="button">Nhân bản phiên bản</button>
+              <button class="dropdown__item" type="button">Xuất JSON</button>
+              <div class="dropdown__divider"></div>
+              <button class="dropdown__item dropdown__item--danger" type="button">Xóa phiên</button>
+            </div>
+          </div>
+
+          <button class="btn btn--secondary" type="button" data-tooltip="Tooltip thuần CSS khi di chuột hoặc focus!">
+            Di chuột hoặc Focus để xem Tooltip
+          </button>
+        </div>
+
+        <div class="popover">
+          <div class="popover__header">
+            <span>Khối Popover nội tuyến (.popover)</span>
+            <span class="badge">Elevated</span>
+          </div>
+          <p>Sử dụng cho bảng đổi giả định nhanh hoặc bộ chọn bộ sưu tập mà không che khuất vùng đọc prompt.</p>
+        </div>
+      </section>
+
+      <!-- 7. TABS & NAVIGATION -->
+      <section id="nav" class="stack">
+        <h2>7. Tabs, Segmented Controls &amp; Danh sách điều hướng</h2>
+        <div class="grid-cols-2">
+          <div class="card">
+            <div class="tabs">
+              <div class="tabs__list" role="tablist">
+                <button class="tabs__tab is-active" type="button" data-demo-tab="tab1">System</button>
+                <button class="tabs__tab" type="button" data-demo-tab="tab2">User Template</button>
+                <button class="tabs__tab" type="button" data-demo-tab="tab3">Metadata</button>
+              </div>
+              <div id="tab1" class="tabs__panel">
+                <p>Nội dung chỉ dẫn hệ thống cố định của phiên bản hiện tại.</p>
+              </div>
+              <div id="tab2" class="tabs__panel is-hidden">
+                <p>Mẫu dữ liệu đầu vào chứa biến <code>{{email_content}}</code> cho API.</p>
+              </div>
+              <div id="tab3" class="tabs__panel is-hidden">
+                <p>Thời gian phản hồi, số lượng token và chuỗi kế thừa phiên bản.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="nav-list">
+              <div class="nav-group-label">Lịch sử gần đây</div>
+              <div class="nav-item is-active">
+                <span class="nav-item__title">Phân loại email hỗ trợ khách hàng</span>
+                <span class="badge badge--primary">v3</span>
+              </div>
+              <div class="nav-item">
+                <span class="nav-item__title">Review Pull Request Go &amp; SQLite</span>
+                <span class="badge">v1</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 8. BADGES, CHIPS & ALERTS -->
+      <section id="feedback" class="stack">
+        <h2>8. Badge, Thẻ Giả định (Editable Assumptions) &amp; Cảnh báo</h2>
+        <div class="card stack">
+          <div class="cluster">
+            <span class="badge">Mặc định</span>
+            <span class="badge badge--primary">Primary</span>
+            <span class="badge badge--success">Đã lưu</span>
+            <span class="badge badge--warning">Chưa trọn vẹn</span>
+            <span class="badge badge--error">Lỗi</span>
+            <span class="badge badge--info">Dán sẵn</span>
+          </div>
+
+          <div class="cluster">
+            <button type="button" class="assumption-chip demo-chip">
+              <span class="assumption-chip__label">Định dạng đầu ra:</span>
+              <strong>JSON Schema chặt</strong>
+              <span aria-hidden="true">▾</span>
+            </button>
+            <button type="button" class="assumption-chip demo-chip">
+              <span class="assumption-chip__label">Giọng điệu:</span>
+              <strong>Ngắn gọn, trực diện</strong>
+              <span aria-hidden="true">▾</span>
+            </button>
+            <button type="button" class="chip is-selected demo-chip">✓ Đã chọn</button>
+          </div>
+
+          <div class="stack stack--sm">
+            <div class="alert alert--info"><strong>Mẹo:</strong> Nhấn <kbd>Ctrl</kbd> + <kbd>Enter</kbd> để tạo prompt ngay lập tức.</div>
+            <div class="alert alert--success"><strong>Đã kết nối:</strong> Nhà cung cấp phản hồi sau 112 ms.</div>
+            <div class="alert alert--warning"><strong>Lưu ý:</strong> Đã lưu cài đặt nhưng khóa API chưa được kiểm tra kết nối.</div>
+            <div class="alert alert--error"><strong>Lỗi xác thực:</strong> Khóa API không hợp lệ (401). Vui lòng kiểm tra trong Cài đặt.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 9. TABLE, TOOLBAR & PAGINATION -->
+      <section id="tables" class="stack">
+        <h2>9. Bảng dữ liệu Responsive, Thanh lọc &amp; Phân trang</h2>
+        <div class="toolbar">
+          <div class="filter-bar">
+            <input type="search" class="input input--sm" placeholder="Lọc bộ kiểm thử evals…" />
+            <select class="select select--sm">
+              <option>Tất cả đích</option>
+              <option>API</option>
+              <option>Agent</option>
+            </select>
+          </div>
+          <div class="pagination" role="navigation" aria-label="Phân trang">
+            <button class="pagination__item" type="button" disabled>‹</button>
+            <button class="pagination__item is-active" type="button">1</button>
+            <button class="pagination__item" type="button">2</button>
+            <button class="pagination__item" type="button">3</button>
+            <button class="pagination__item" type="button">›</button>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="table table--striped">
+            <thead>
+              <tr>
+                <th>Mã kịch bản</th>
+                <th>Nhóm kiểm thử</th>
+                <th>Đích</th>
+                <th>Độ trễ</th>
+                <th>Kết quả</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>clear-02-api-support-triage</code></td>
+                <td>Tách System &amp; User + Biến</td>
+                <td><span class="badge badge--primary">api</span></td>
+                <td>18 ms</td>
+                <td><span class="badge badge--success">ĐẠT</span></td>
+              </tr>
+              <tr>
+                <td><code>ambiguous-01-marketing-plan</code></td>
+                <td>Sinh giả định thay câu hỏi</td>
+                <td><span class="badge">chat</span></td>
+                <td>15 ms</td>
+                <td><span class="badge badge--success">ĐẠT</span></td>
+              </tr>
+              <tr>
+                <td><code>injection-02-reveal-system-prompt</code></td>
+                <td>Chống lộ chỉ dẫn nội bộ</td>
+                <td><span class="badge badge--info">agent</span></td>
+                <td>14 ms</td>
+                <td><span class="badge badge--success">0 rò rỉ</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- 10. LOADING & EMPTY STATES -->
+      <section id="states" class="stack">
+        <h2>10. Chỉ báo tải, Skeleton &amp; Trạng thái rỗng</h2>
+        <div class="grid-cols-2">
+          <div class="card stack">
+            <div class="card__title">Spinner &amp; Khung xương tải trước</div>
+            <div class="cluster cluster--md">
+              <span class="spinner spinner--sm" aria-label="Đang tải nhỏ"></span>
+              <span class="spinner" aria-label="Đang tải vừa"></span>
+              <span class="spinner spinner--lg" aria-label="Đang tải lớn"></span>
+              <span class="ai-shimmer">Đang nhận luồng prompt…</span>
+            </div>
+            <div class="stack stack--sm">
+              <div class="skeleton skeleton--title"></div>
+              <div class="skeleton skeleton--text"></div>
+              <div class="skeleton skeleton--card"></div>
+            </div>
+          </div>
+
+          <div class="empty-state">
+            <div class="empty-state__icon" aria-hidden="true">✦</div>
+            <div class="empty-state__title">Thư viện chưa có prompt nào</div>
+            <p class="empty-state__desc">
+              Tạo prompt mới trong Studio rồi bấm Lưu, hoặc dán sẵn prompt quen dùng để quản lý phiên bản và bộ sưu tập.
+            </p>
+            <a href="/" class="btn btn--primary btn--sm">Tạo prompt đầu tiên</a>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Demo Modal Dialog -->
+  <div id="demoModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="demoModalTitle">
+    <div id="demoModalBackdrop" class="modal__backdrop"></div>
+    <div class="modal__dialog">
+      <div class="modal__header">
+        <h3 id="demoModalTitle" class="modal__title">Dán prompt có sẵn</h3>
+        <button id="closeDemoModalBtn" class="btn btn--ghost btn--icon btn--sm" type="button" aria-label="Đóng"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      </div>
+      <div class="modal__body stack stack--md">
+        <p>Hộp thoại sử dụng <code>--color-surface-elevated</code>, <code>--z-modal</code> và đóng mượt bằng phím <kbd>Esc</kbd> hoặc bấm nền ngoài.</p>
+        <div class="field">
+          <label for="modalNoteInput" class="field__label">Tiêu đề gợi nhớ</label>
+          <input id="modalNoteInput" type="text" class="input" placeholder="Ví dụ: Bộ lọc bình luận độc hại" />
+        </div>
+      </div>
+      <div class="modal__footer">
+        <button id="cancelDemoModalBtn" class="btn btn--ghost" type="button">Hủy</button>
+        <button id="confirmDemoModalBtn" class="btn btn--primary" type="button">Lưu vào Thư viện</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/showcase.js"></script>
+</body>
+</html>

@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="vi" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prompt Studio — Settings</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="top-bar">
+    <a href="/" class="back-link">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+      <span>Quay lại Studio</span>
+    </a>
+    <a href="/showcase" class="btn btn--ghost btn--sm">UI Showcase</a>
+  </header>
+
+  <main class="page-layout">
+    <div class="container container--sm stack stack--lg">
+      <header class="stack stack--xs">
+        <h1 class="studio-hero__title">Settings</h1>
+        <p class="studio-hero__subtitle">Một LLM mặc định cho toàn bộ ứng dụng. Cấu hình một lần, dùng cho mọi phiên.</p>
+      </header>
+
+      <div class="alert is-hidden" id="settingsFeedbackBanner" role="status"></div>
+
+      <!-- Nhà cung cấp AI mặc định -->
+      <form class="card stack stack--lg" id="aiSettingsForm" aria-label="Nhà cung cấp AI">
+        <h2 class="text-md font-semibold">Nhà cung cấp AI mặc định</h2>
+
+        <div class="field">
+          <label for="providerSelect" class="field__label">Provider</label>
+          <select class="select" id="providerSelect">
+            <option value="openai">OpenAI</option>
+            <option value="anthropic">Anthropic</option>
+            <option value="openai-compatible">OpenAI-compatible (OpenRouter, Ollama, LM Studio…)</option>
+            <option value="mock">Mock (Chế độ thử nghiệm offline)</option>
+          </select>
+        </div>
+
+        <div class="field" id="baseUrlField">
+          <label for="baseUrlInput" class="field__label">
+            Base URL <span class="text-muted">· chỉ cần khi chọn OpenAI-compatible</span>
+          </label>
+          <input type="url" class="input" id="baseUrlInput" placeholder="http://127.0.0.1:11434/v1">
+        </div>
+
+        <div class="field">
+          <label for="modelInput" class="field__label">Model ID</label>
+          <input type="text" class="input" id="modelInput" list="modelSuggestions" placeholder="gpt-4o-mini">
+          <datalist id="modelSuggestions">
+            <option value="gpt-4o-mini"></option>
+            <option value="gpt-4o"></option>
+            <option value="claude-3-5-sonnet-latest"></option>
+            <option value="claude-3-5-haiku-latest"></option>
+            <option value="llama3.1"></option>
+          </datalist>
+          <span class="field__hint">Gợi ý tự động theo provider đã chọn, có thể gõ bất kỳ model ID nào.</span>
+        </div>
+
+        <div class="field">
+          <span class="field__label">API Key</span>
+
+          <!-- Trạng thái đã có key lưu -->
+          <div class="stored-key-bar is-hidden" id="storedKeyBar">
+            <div class="stored-key-bar__mask">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+              <span id="keyHintText">••••••••••</span>
+            </div>
+            <button type="button" class="btn btn--secondary" id="replaceKeyBtn">Thay thế</button>
+            <button type="button" class="btn btn--danger-outline" id="deleteKeyBtn">Xóa</button>
+          </div>
+
+          <!-- Ô nhập key mới -->
+          <div class="cluster cluster--sm" id="keyInputGroup">
+            <input type="password" class="input toolbar__spacer" id="apiKeyInput" autocomplete="off" placeholder="sk-...">
+            <button type="button" class="btn btn--ghost is-hidden" id="cancelReplaceKeyBtn">Hủy</button>
+          </div>
+
+          <span class="field__hint">Key chỉ lưu trên máy này (file quyền 0600, ngoài SQLite) và không bao giờ gửi lại trình duyệt.</span>
+        </div>
+
+        <details class="stack stack--sm">
+          <summary class="text-sm font-medium">Nâng cao</summary>
+          <div class="grid-cols-3">
+            <label class="field">
+              <span class="field__label">Temperature</span>
+              <input type="number" class="input" id="temperatureInput" step="0.1" min="0" max="2" value="0.4">
+            </label>
+            <label class="field">
+              <span class="field__label">Max output tokens</span>
+              <input type="number" class="input" id="maxTokensInput" step="100" min="128" max="16384" value="2000">
+            </label>
+            <label class="field">
+              <span class="field__label">Timeout (giây)</span>
+              <input type="number" class="input" id="timeoutInput" step="5" min="5" max="300" value="60">
+            </label>
+          </div>
+        </details>
+
+        <div class="card__footer">
+          <button type="button" class="btn btn--secondary" id="testConnectionBtn">Test Connection</button>
+          <button type="submit" class="btn btn--primary" id="saveSettingsBtn">Lưu</button>
+        </div>
+      </form>
+
+      <!-- Cài đặt Chung & Sao lưu -->
+      <section class="card stack stack--md" aria-label="Chung">
+        <h2 class="text-md font-semibold">Chung</h2>
+        <div class="grid-cols-2">
+          <label class="field">
+            <span class="field__label">Ngôn ngữ prompt</span>
+            <select class="select" id="promptLanguageSelect">
+              <option value="match">Theo yêu cầu</option>
+              <option value="vi">Tiếng Việt</option>
+              <option value="en">English</option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="field__label">Giao diện</span>
+            <select class="select" id="themeSelect">
+              <option value="dark">Tối</option>
+              <option value="light">Sáng</option>
+              <option value="system">Theo hệ thống</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="card__footer cluster--between">
+          <span class="text-sm text-secondary">Sao lưu toàn bộ phiên và collection ra một file JSON (không chứa API key).</span>
+          <div class="cluster cluster--sm">
+            <input type="file" id="importFileInput" accept="application/json,.json" class="is-hidden">
+            <button type="button" class="btn btn--secondary" id="importDataBtn">Nhập dữ liệu</button>
+            <button type="button" class="btn btn--secondary" id="exportDataBtn">Xuất dữ liệu</button>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script src="/api.js"></script>
+  <script src="/ui.js"></script>
+  <script src="/settings.js"></script>
+</body>
+</html>

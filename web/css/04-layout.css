@@ -1,0 +1,294 @@
+/* ==========================================================================
+   4. LAYOUT — Mobile-First Containers, 12-Col Grid, Stack, Cluster & Sidebar
+   Breakpoints (min-width): sm=640px, md=768px, lg=1024px, xl=1280px
+   ========================================================================== */
+
+@layer layout {
+  /* --- Containers --- */
+  .container {
+    --container-max: var(--container-lg);
+    width: min(100% - (2 * var(--content-padding)), var(--container-max));
+    margin-inline: auto;
+  }
+
+  .container--sm {
+    --container-max: var(--container-sm);
+  }
+
+  .container--md {
+    --container-max: var(--container-md);
+  }
+
+  .container--lg {
+    --container-max: var(--container-lg);
+  }
+
+  .container--xl {
+    --container-max: var(--container-xl);
+  }
+
+  .container--fluid {
+    width: 100%;
+    padding-inline: var(--content-padding);
+  }
+
+  /* --- Page & Section Wrappers --- */
+  .page-layout {
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    padding-block: var(--space-8) var(--space-16);
+  }
+
+  .page-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+    margin-bottom: var(--space-6);
+  }
+
+  .section {
+    padding-block: var(--space-6);
+  }
+
+  .section--sm {
+    padding-block: var(--space-4);
+  }
+
+  .section--lg {
+    padding-block: var(--space-10);
+  }
+
+  /* --- Stack (Vertical Rhythm via Flexbox) --- */
+  .stack {
+    --stack-gap: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--stack-gap);
+  }
+
+  .stack--xs {
+    --stack-gap: var(--space-1);
+  }
+
+  .stack--sm {
+    --stack-gap: var(--space-2);
+  }
+
+  .stack--md {
+    --stack-gap: var(--space-3);
+  }
+
+  .stack--lg {
+    --stack-gap: var(--space-6);
+  }
+
+  .stack--xl {
+    --stack-gap: var(--space-8);
+  }
+
+  /* --- Cluster (Horizontal Wrapping Group) --- */
+  .cluster {
+    --cluster-gap: var(--space-2);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--cluster-gap);
+  }
+
+  .cluster--xs {
+    --cluster-gap: var(--space-1);
+  }
+
+  .cluster--sm {
+    --cluster-gap: var(--space-2);
+  }
+
+  .cluster--md {
+    --cluster-gap: var(--space-3);
+  }
+
+  .cluster--lg {
+    --cluster-gap: var(--space-4);
+  }
+
+  .cluster--between {
+    justify-content: space-between;
+  }
+
+  .cluster--end {
+    justify-content: flex-end;
+  }
+
+  .cluster--start {
+    align-items: flex-start;
+  }
+
+  .cluster--nowrap {
+    flex-wrap: nowrap;
+  }
+
+  /* --- CSS Grid System (12-Column + Equal Columns + Auto-Fit) --- */
+  .grid {
+    display: grid;
+    gap: var(--grid-gap);
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
+
+  /* Mobile-first default: spanned columns stack full width below md (768px) */
+  .col-span-1,
+  .col-span-2,
+  .col-span-3,
+  .col-span-4,
+  .col-span-5,
+  .col-span-6,
+  .col-span-7,
+  .col-span-8,
+  .col-span-9,
+  .col-span-10,
+  .col-span-11,
+  .col-span-12,
+  .col-span-full {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+
+  @media (min-width: 768px) {
+    .col-span-1 { grid-column: span 1; }
+    .col-span-2 { grid-column: span 2; }
+    .col-span-3 { grid-column: span 3; }
+    .col-span-4 { grid-column: span 4; }
+    .col-span-5 { grid-column: span 5; }
+    .col-span-6 { grid-column: span 6; }
+    .col-span-7 { grid-column: span 7; }
+    .col-span-8 { grid-column: span 8; }
+    .col-span-9 { grid-column: span 9; }
+    .col-span-10 { grid-column: span 10; }
+    .col-span-11 { grid-column: span 11; }
+    .col-span-12 { grid-column: span 12; }
+  }
+
+  /* Equal-column shorthand grids (Mobile-first progressive columns) */
+  .grid-cols-2,
+  .grid-cols-3,
+  .grid-cols-4 {
+    display: grid;
+    gap: var(--grid-gap);
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  @media (min-width: 640px) {
+    .grid-cols-2,
+    .grid-cols-4 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (min-width: 768px) {
+    .grid-cols-3 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .grid-cols-4 {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+
+  /* Intrinsic Responsive Grid (Zero media queries needed) */
+  .grid-auto-fit {
+    --min-col-size: 15rem;
+    display: grid;
+    gap: var(--grid-gap);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--min-col-size)), 1fr));
+  }
+
+  /* --- Application Sidebar Layout (Mobile Off-Canvas -> Desktop Persistent) --- */
+  .sidebar-layout {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+
+  .sidebar-layout__sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: min(85vw, var(--sidebar-width));
+    height: 100vh;
+    height: 100dvh;
+    background-color: var(--color-surface);
+    border-right: var(--border-thin) solid var(--color-border);
+    display: flex;
+    flex-direction: column;
+    z-index: var(--z-drawer);
+    transform: translateX(-100%);
+    transition: transform var(--duration-normal) var(--ease-standard);
+  }
+
+  .sidebar-layout__sidebar.is-open {
+    transform: translateX(0);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .sidebar-layout__backdrop {
+    position: fixed;
+    inset: 0;
+    background-color: var(--color-backdrop);
+    z-index: calc(var(--z-drawer) - 1);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--duration-normal) var(--ease-standard);
+  }
+
+  .sidebar-layout__backdrop.is-open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .sidebar-layout__main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .mobile-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    min-height: var(--header-height);
+    padding-inline: var(--space-4);
+    background-color: var(--color-surface);
+    border-bottom: var(--border-thin) solid var(--color-border);
+    position: sticky;
+    top: 0;
+    z-index: var(--z-header);
+  }
+
+  @media (min-width: 1024px) {
+    .sidebar-layout {
+      display: grid;
+      grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+    }
+
+    .sidebar-layout__sidebar {
+      position: sticky;
+      top: 0;
+      width: var(--sidebar-width);
+      transform: none;
+      box-shadow: none;
+      z-index: var(--z-base);
+    }
+
+    .sidebar-layout__backdrop,
+    .mobile-header {
+      display: none;
+    }
+  }
+}

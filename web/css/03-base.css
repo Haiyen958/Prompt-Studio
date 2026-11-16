@@ -1,0 +1,103 @@
+/* ==========================================================================
+   3. BASE — HTML Elements, Global Typography, Code & Focus Standards
+   ========================================================================== */
+
+@layer base {
+  html,
+  body {
+    min-height: 100vh;
+    min-height: 100dvh;
+    background-color: var(--color-bg);
+    color: var(--color-text-primary);
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: var(--leading-normal);
+    -webkit-font-smoothing: antialiased;
+    overflow-x: clip;
+  }
+
+  /* Keep the root at the browser default (16px) so every rem token resolves to
+     its documented px value. Setting 0.875rem on <html> shrank the whole scale to 87.5%. */
+  html {
+    font-size: 100%;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    color: var(--color-text-primary);
+    font-weight: var(--font-semibold);
+    line-height: var(--leading-tight);
+    letter-spacing: var(--tracking-tight);
+  }
+
+  h1 {
+    font-size: var(--text-xl);
+  }
+
+  h2 {
+    font-size: var(--text-lg);
+  }
+
+  h3 {
+    font-size: var(--text-md);
+  }
+
+  p {
+    color: var(--color-text-secondary);
+  }
+
+  a {
+    color: var(--color-primary);
+    text-decoration: none;
+    transition: color var(--duration-fast) var(--ease-standard);
+  }
+
+  a:hover {
+    color: var(--color-primary-hover);
+  }
+
+  strong,
+  b {
+    font-weight: var(--font-semibold);
+  }
+
+  small {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+  }
+
+  code,
+  kbd,
+  samp,
+  pre {
+    font-family: var(--font-mono);
+  }
+
+  code,
+  kbd {
+    font-size: var(--text-xs);
+    background-color: var(--color-surface-subtle);
+    border: var(--border-thin) solid var(--color-border);
+    border-radius: var(--radius-xs);
+    padding: 1px var(--space-1);
+  }
+
+  hr {
+    border: 0;
+    border-top: var(--border-thin) solid var(--color-divider);
+    margin-block: var(--space-4);
+  }
+
+  details > summary {
+    cursor: pointer;
+    user-select: none;
+  }
+
+  /* Universal Keyboard Accessibility Ring */
+  :focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+  }
+}

@@ -1,0 +1,15 @@
+/* ==========================================================================
+   Prompt Studio — Vanilla CSS Design System
+   Entrypoint: Cascade Layer Order & Modular Imports
+   ========================================================================== */
+
+@layer tokens, reset, base, layout, components, pages, themes, utilities;
+
+@import url("./css/01-tokens.css");
+@import url("./css/02-reset.css");
+@import url("./css/03-base.css");
+@import url("./css/04-layout.css");
+@import url("./css/05-components.css");
+@import url("./css/06-pages.css");
+@import url("./css/07-themes.css");
+@import url("./css/08-utilities.css");

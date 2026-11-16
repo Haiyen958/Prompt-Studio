@@ -1,0 +1,58 @@
+[
+  {
+    "id": "email-work",
+    "title": "Email công việc",
+    "request": "Tôi cần prompt để soạn email công việc gửi khách hàng thông báo dời lịch triển khai thêm 3 ngày một cách chuyên nghiệp và giữ thiện chí.",
+    "select": "khách hàng thông báo dời lịch triển khai thêm 3 ngày một cách chuyên nghiệp và giữ thiện chí",
+    "preset": { "target": "chat" }
+  },
+  {
+    "id": "social-post",
+    "title": "Bài đăng mạng xã hội",
+    "request": "Tôi cần prompt để viết bài đăng LinkedIn chia sẻ bài học thực tế sau khi tối ưu tốc độ tải trang giảm 50% cho ứng dụng SaaS.",
+    "select": "LinkedIn chia sẻ bài học thực tế sau khi tối ưu tốc độ tải trang giảm 50% cho ứng dụng SaaS",
+    "preset": { "target": "chat" }
+  },
+  {
+    "id": "short-video",
+    "title": "Kịch bản video ngắn",
+    "request": "Tôi cần prompt để viết kịch bản video giới thiệu sản phẩm 30 giây cho TikTok, có câu mở đầu giữ chân trong 3 giây đầu.",
+    "select": "giới thiệu sản phẩm 30 giây cho TikTok, có câu mở đầu giữ chân trong 3 giây đầu",
+    "preset": { "target": "chat" }
+  },
+  {
+    "id": "user-story-prd",
+    "title": "User story / PRD",
+    "request": "Tôi cần prompt để viết PRD và danh sách user story kèm tiêu chí nghiệm thu cho tính năng thông báo đẩy theo hành vi người dùng.",
+    "select": "thông báo đẩy theo hành vi người dùng",
+    "preset": { "target": "chat" }
+  },
+  {
+    "id": "code-review",
+    "title": "Review code",
+    "request": "Tôi cần prompt để agent review một pull request Go, tập trung vào lỗi xử lý đồng thời và rò rỉ goroutine.",
+    "select": "Go, tập trung vào lỗi xử lý đồng thời và rò rỉ goroutine",
+    "preset": { "target": "agent" }
+  },
+  {
+    "id": "bug-fix",
+    "title": "Tìm và sửa lỗi",
+    "request": "Tôi cần prompt để agent chẩn đoán nguyên nhân gốc rễ, viết regression test và sửa lỗi API thanh toán thỉnh thoảng trả 500 khi gửi trùng request.",
+    "select": "API thanh toán thỉnh thoảng trả 500 khi gửi trùng request",
+    "preset": { "target": "agent" }
+  },
+  {
+    "id": "data-sql",
+    "title": "Phân tích dữ liệu / SQL",
+    "request": "Tôi cần system prompt cho API chuyển câu hỏi tiếng Việt của bộ phận kinh doanh thành truy vấn PostgreSQL chỉ đọc an toàn.",
+    "select": "chuyển câu hỏi tiếng Việt của bộ phận kinh doanh thành truy vấn PostgreSQL chỉ đọc an toàn",
+    "preset": { "target": "api" }
+  },
+  {
+    "id": "meeting-summary",
+    "title": "Tóm tắt cuộc họp",
+    "request": "Tôi cần system prompt cho API trích xuất quyết định chính, đầu việc, người phụ trách và hạn chót thành JSON từ biên bản cuộc họp thô.",
+    "select": "quyết định chính, đầu việc, người phụ trách và hạn chót thành JSON từ biên bản cuộc họp thô",
+    "preset": { "target": "api" }
+  }
+]

@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="vi" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prompt Studio</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="sidebar-layout" id="appShell">
+    <div class="sidebar-layout__backdrop" id="sidebarBackdrop"></div>
+
+    <!-- Thanh bên (Studio Lịch sử / Thư viện Collection) -->
+    <aside class="sidebar-layout__sidebar" id="appSidebar" aria-label="Điều hướng chính">
+      <div class="sidebar__header">
+        <a href="/" class="brand" id="brandHomeLink">
+          <span class="brand__mark">PS</span>
+          <span>Prompt Studio</span>
+        </a>
+        <button type="button" class="btn btn--ghost btn--icon is-hidden" id="closeSidebarBtn" aria-label="Đóng thanh bên"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      </div>
+
+      <nav class="sidebar__nav" aria-label="Chính">
+        <button type="button" class="sidebar__nav-link is-active" id="navStudioBtn" aria-current="page">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>
+          <span>Studio</span>
+        </button>
+        <button type="button" class="sidebar__nav-link" id="navLibraryBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h4v16H5zM10 4h4v16h-4zM15.5 5l3.8-1 3.2 15.5-3.8 1z"/></svg>
+          <span>Thư viện</span>
+        </button>
+      </nav>
+
+      <!-- Khu điều khiển chế độ Studio -->
+      <div class="sidebar__controls" id="sidebarStudioControls">
+        <button type="button" class="btn btn--secondary btn--block" id="newSessionBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          <span>Phiên mới</span>
+        </button>
+        <label class="sidebar__search">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+          <span class="sr-only">Tìm phiên</span>
+          <input type="search" class="sidebar__search-input" id="historySearchInput" placeholder="Tìm phiên…">
+        </label>
+      </div>
+
+      <div class="sidebar__scroll" id="sidebarStudioScroll" aria-label="Lịch sử phiên">
+        <div class="nav-list" id="historyList"></div>
+      </div>
+
+      <!-- Khu điều khiển chế độ Thư viện -->
+      <div class="sidebar__controls is-hidden" id="sidebarLibraryControls">
+        <div class="cluster cluster--between">
+          <span class="text-xs text-secondary font-semibold">Collection</span>
+          <button type="button" class="btn btn--ghost btn--icon" id="newCollectionBtn" data-tooltip="Tạo collection" aria-label="Tạo collection" aria-expanded="false" aria-controls="newCollectionForm">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          </button>
+        </div>
+        <form class="cluster cluster--xs is-hidden" id="newCollectionForm">
+          <input type="text" class="input input--sm toolbar__spacer" id="newCollectionInput" placeholder="Tên collection…" maxlength="60" aria-label="Tên collection mới">
+          <button type="submit" class="btn btn--primary btn--sm">Tạo</button>
+        </form>
+      </div>
+
+      <div class="sidebar__scroll is-hidden" id="sidebarLibraryScroll" aria-label="Danh sách collection">
+        <div class="nav-list" id="collectionsList"></div>
+      </div>
+
+      <div class="sidebar__footer">
+        <a href="/settings" class="sidebar-ai-card" id="sidebarAiCard">
+          <span class="status-dot status-dot--warning" id="sidebarAiDot"></span>
+          <span class="sidebar-ai-card__info">
+            <span class="sidebar-ai-card__title" id="sidebarAiTitle">Đang kiểm tra…</span>
+            <span class="sidebar-ai-card__sub" id="sidebarAiSub">Cài đặt AI</span>
+          </span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>
+        </a>
+      </div>
+    </aside>
+
+    <!-- Nội dung chính -->
+    <div class="sidebar-layout__main">
+      <header class="mobile-header">
+        <button type="button" class="btn btn--ghost btn--icon" id="openSidebarBtn" aria-label="Mở thanh bên" aria-controls="appSidebar" aria-expanded="false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <span class="brand">
+          <span class="brand__mark">PS</span>
+          <span>Prompt Studio</span>
+        </span>
+        <a href="/settings" class="btn btn--ghost btn--sm">Cài đặt</a>
+      </header>
+
+      <!-- 1. MÀN HÌNH STUDIO -->
+      <main class="studio-workspace stack stack--lg" id="studioView">
+        <!-- Banner chưa kết nối AI -->
+        <div class="alert alert--warning is-hidden" id="unconfiguredBanner" role="status">
+          <span><strong>Chưa kết nối AI.</strong> Thêm provider và API key để bắt đầu tạo prompt.</span>
+          <a href="/settings" class="btn btn--primary btn--sm" id="unconfiguredSettingsLink">Mở Settings</a>
+        </div>
+
+        <header class="stack stack--xs" id="studioHero">
+          <h1 class="studio-hero__title">Bạn muốn tạo gì?</h1>
+          <p class="studio-hero__subtitle">Mô tả ý tưởng bằng ngôn ngữ tự nhiên. AI viết prompt ngay và nêu rõ các giả định để bạn sửa.</p>
+        </header>
+
+        <!-- Khung nhập yêu cầu (4 trạng thái hiệu ứng AI) -->
+        <section class="ai-frame" id="requestFrame" aria-label="Yêu cầu">
+          <label for="requestInput" class="ai-frame__label">Yêu cầu của bạn</label>
+          <textarea
+            id="requestInput"
+            class="ai-frame__textarea"
+            rows="3"
+            maxlength="8500"
+            placeholder="Tôi cần prompt để viết kịch bản video giới thiệu sản phẩm 30 giây cho TikTok"></textarea>
+
+          <!-- Trạng thái thường -->
+          <div class="ai-frame__footer" id="requestIdleFooter">
+            <label class="inline-select-label">
+              <span>Dùng cho</span>
+              <select class="select select--sm" id="targetSelect">
+                <option value="chat">Chat</option>
+                <option value="api">System prompt API</option>
+                <option value="agent">Agent lập trình</option>
+              </select>
+            </label>
+            <span class="badge badge--primary is-hidden" id="starterPresetBadge"></span>
+            <span class="toolbar__spacer"></span>
+            <span class="char-counter" id="requestCharCounter">0 / 8.000</span>
+            <button type="button" class="btn btn--primary" id="generateBtn" aria-describedby="unconfiguredBanner">
+              <span>Tạo prompt</span>
+              <span class="kbd-hint">⌘↵</span>
+            </button>
+          </div>
+
+          <!-- Trạng thái đang phân tích / đang viết -->
+          <div class="ai-frame__footer is-hidden" id="requestBusyFooter">
+            <span role="status" class="cluster cluster--sm">
+              <span class="ai-dot"></span>
+              <span class="ai-shimmer" id="aiBusyStatusText">Đang phân tích yêu cầu…</span>
+            </span>
+            <span class="toolbar__spacer"></span>
+            <button type="button" class="btn btn--secondary" id="stopStreamBtn">
+              <span class="stop-square" aria-hidden="true"></span>
+              <span>Dừng</span>
+            </button>
+          </div>
+        </section>
+
+        <!-- Lỗi tạo/tinh chỉnh: ngay dưới nút Tạo prompt, nơi người dùng đang nhìn -->
+        <div class="alert alert--error is-hidden" id="studioErrorBanner" role="alert">
+          <span id="studioErrorText"></span>
+          <button type="button" class="btn btn--ghost btn--sm" id="dismissErrorBtn">Đóng</button>
+        </div>
+
+        <!-- Mẫu khởi đầu (Hiện khi chưa có kết quả) -->
+        <section class="stack stack--sm" id="startersSection" aria-label="Mẫu khởi đầu">
+          <span class="ai-frame__label">Bắt đầu từ mẫu</span>
+          <div class="cluster cluster--sm" id="starterChipsContainer"></div>
+        </section>
+
+        <!-- Khung kết quả Prompt -->
+        <section class="result-card is-hidden" id="resultCard" aria-label="Kết quả">
+          <div class="result-card__header">
+            <span class="result-card__title">Prompt</span>
+            <div class="version-stepper" id="versionStepper">
+              <button type="button" class="btn btn--ghost btn--icon" id="prevVersionBtn" aria-label="Phiên bản trước">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+              </button>
+              <span class="version-pill" id="versionIndicator" aria-live="polite">v1 / 1</span>
+              <button type="button" class="btn btn--ghost btn--icon" id="nextVersionBtn" aria-label="Phiên bản sau">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+              </button>
+            </div>
+            <span class="badge badge--primary" id="versionSourceBadge">Tạo mới</span>
+            <span class="badge badge--warning is-hidden" id="incompleteBadge">Chưa xong</span>
+
+            <span class="toolbar__spacer"></span>
+
+            <button type="button" class="btn btn--secondary btn--sm" id="openCompareBtn">So sánh</button>
+            <button type="button" class="btn btn--secondary btn--sm" id="saveSessionBtn" aria-pressed="false">Lưu</button>
+            <button type="button" class="btn btn--primary btn--sm" id="copyPromptBtn">Copy</button>
+            <div class="dropdown">
+              <button type="button" class="btn btn--ghost btn--icon" id="resultMoreBtn" aria-label="Thao tác khác" aria-controls="resultMoreMenu">
+                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
+              </button>
+              <div class="dropdown__menu" role="menu" id="resultMoreMenu" aria-label="Thao tác khác">
+                <button type="button" role="menuitem" class="dropdown__item" id="regenerateBtn">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/></svg>
+                  <span>Tạo lại</span>
+                </button>
+                <button type="button" role="menuitem" class="dropdown__item" id="manualEditBtn">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>
+                  <span>Sửa tay</span>
+                </button>
+                <button type="button" role="menuitem" class="dropdown__item" id="downloadMdBtn">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
+                  <span>Tải về .md</span>
+                </button>
+                <button type="button" role="menuitem" class="dropdown__item is-hidden" id="copyApiJsonBtn">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4H6v16h2M16 4h2v16h-2"/></svg>
+                  <span>Copy JSON messages</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Thanh xác nhận Lưu 1 cú bấm -->
+          <div class="save-bar is-hidden" id="saveBar" role="status">
+            <span class="save-bar__text" id="saveBarSummary"></span>
+            <button type="button" class="btn btn--secondary btn--sm" id="toggleSaveEditBtn">Đổi</button>
+            <div class="save-bar__editor is-hidden" id="saveBarEditor">
+              <input type="text" class="input input--sm" id="saveTitleInput" placeholder="Tên prompt đã lưu…" aria-label="Tên prompt đã lưu">
+              <select class="select select--sm" id="saveCollectionSelect" aria-label="Collection"></select>
+              <button type="button" class="btn btn--primary btn--sm" id="applySaveEditBtn">Cập nhật</button>
+              <button type="button" class="btn btn--ghost btn--sm" id="unsaveSessionBtn">Bỏ lưu</button>
+            </div>
+          </div>
+
+          <!-- Nội dung hiển thị hoặc sửa tay -->
+          <div class="result-card__body">
+            <div id="promptDisplayContainer"></div>
+
+            <div class="stack stack--sm is-hidden" id="manualEditContainer">
+              <textarea id="manualEditTextarea" class="textarea textarea--lg text-mono" rows="12"></textarea>
+              <div class="cluster cluster--end">
+                <button type="button" class="btn btn--ghost btn--sm" id="cancelManualEditBtn">Hủy</button>
+                <button type="button" class="btn btn--primary btn--sm" id="saveManualEditBtn">Lưu thành phiên bản mới</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Chip giả định sửa được -->
+          <div class="assumptions-section is-hidden" id="assumptionsSection">
+            <span class="assumptions-section__title">
+              AI đã giả định <span class="assumptions-section__hint">· bấm để đổi, prompt sẽ được viết lại</span>
+            </span>
+            <div class="cluster cluster--sm" id="assumptionsList"></div>
+          </div>
+
+          <!-- Dòng thông số cuối thẻ -->
+          <div class="result-meta-bar" id="resultMetaBar"></div>
+        </section>
+
+        <!-- Khu Tinh chỉnh -->
+        <section class="stack stack--sm is-hidden" id="refineSection" aria-label="Tinh chỉnh">
+          <div class="cluster cluster--sm" id="quickRefineChips">
+            <button type="button" class="chip" data-instruction="Viết ngắn gọn, súc tích hơn và bỏ các ý rườm rà">Ngắn hơn</button>
+            <button type="button" class="chip" data-instruction="Bổ sung hướng dẫn chi tiết từng bước và các trường hợp biên">Chi tiết hơn</button>
+            <button type="button" class="chip" data-instruction="Thêm 1–2 ví dụ minh họa đầu vào và đầu ra mẫu rõ ràng">Thêm ví dụ</button>
+            <button type="button" class="chip" data-instruction="Yêu cầu định dạng đầu ra dạng JSON có cấu trúc chặt chẽ">Đầu ra dạng JSON</button>
+            <button type="button" class="chip" data-instruction="Tập trung vào hiệu năng, khả năng mở rộng và ràng buộc thực tế">Tập trung hiệu năng</button>
+          </div>
+          <form class="ai-frame ai-frame--compact" id="refineForm">
+            <label for="refineInput" class="sr-only">Chỉ dẫn tinh chỉnh</label>
+            <input type="text" class="ai-frame__input" id="refineInput" placeholder="Muốn chỉnh gì?">
+            <button type="submit" class="btn btn--primary btn--icon" id="submitRefineBtn" aria-label="Gửi tinh chỉnh" disabled>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </button>
+          </form>
+          <p class="text-xs text-muted">Mỗi lần tinh chỉnh tạo phiên bản mới; các bản cũ vẫn xem lại được.</p>
+        </section>
+      </main>
+
+      <!-- 2. MÀN HÌNH SO SÁNH SONG SONG -->
+      <main class="compare-workspace is-hidden" id="compareView" aria-label="So sánh với yêu cầu gốc">
+        <div class="cluster cluster--between">
+          <div class="cluster cluster--md">
+            <button type="button" class="back-link" id="backFromCompareBtn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+              <span>Quay lại prompt</span>
+            </button>
+            <h1 class="text-lg">So sánh với yêu cầu gốc</h1>
+          </div>
+          <div class="cluster cluster--sm">
+            <span class="text-xs text-muted" id="compareSubMeta">2 lần gọi song song · kết quả không được lưu</span>
+            <button type="button" class="btn btn--secondary btn--sm" id="rerunCompareBtn">Chạy lại</button>
+          </div>
+        </div>
+
+        <details class="compare-help">
+          <summary>So sánh hoạt động thế nào?</summary>
+          <p>Cùng một model trả lời hai đầu vào: yêu cầu bạn gõ ban đầu và phiên bản prompt đang chọn. Đây là cách nhanh nhất để kiểm chứng prompt có thực sự hiệu quả hơn không.</p>
+        </details>
+
+        <!-- Khung điền Dữ liệu thử nếu prompt có {{biến}} -->
+        <section class="card stack stack--sm is-hidden" id="compareVarsCard" aria-label="Dữ liệu thử">
+          <div class="cluster cluster--between">
+            <span class="font-semibold text-sm">Dữ liệu thử cho các biến trong prompt</span>
+            <span class="text-xs text-muted">Điền một lần để áp dụng cho cả hai bên</span>
+          </div>
+          <div class="grid-auto-fit" id="compareVarsInputs"></div>
+          <div class="cluster cluster--end">
+            <button type="button" class="btn btn--primary btn--sm" id="runCompareWithVarsBtn">Chạy so sánh</button>
+          </div>
+        </section>
+
+        <div class="compare-grid">
+          <section class="compare-card" aria-label="Yêu cầu gốc">
+            <div class="compare-card__header">
+              <span class="compare-card__tag">Đầu vào A · Yêu cầu gốc</span>
+              <p class="compare-card__input-preview" id="compareRawInputPreview"></p>
+            </div>
+            <article class="compare-card__body prompt-markdown" id="compareRawOutput"></article>
+            <div class="compare-card__footer" id="compareRawFooter">Đang chờ…</div>
+          </section>
+
+          <section class="compare-card compare-card--prompt" aria-label="Prompt Studio">
+            <div class="compare-card__header">
+              <span class="compare-card__tag compare-card__tag--prompt" id="comparePromptTag">Đầu vào B · Prompt</span>
+              <p class="compare-card__input-preview" id="comparePromptInputPreview"></p>
+            </div>
+            <article class="compare-card__body prompt-markdown" id="comparePromptOutput"></article>
+            <div class="compare-card__footer" id="comparePromptFooter">Đang chờ…</div>
+          </section>
+        </div>
+
+        <div class="card card--compact cluster cluster--between">
+          <span class="text-sm">Kết quả B đã đủ tốt chưa?</span>
+          <div class="cluster cluster--sm">
+            <button type="button" class="btn btn--secondary btn--sm" id="compareRefineBtn">Chưa, tinh chỉnh prompt</button>
+            <button type="button" class="btn btn--secondary btn--sm" id="compareSaveBtn">Lưu vào thư viện</button>
+            <button type="button" class="btn btn--primary btn--sm" id="compareCopyBtn">Copy prompt</button>
+          </div>
+        </div>
+      </main>
+
+      <!-- 3. MÀN HÌNH THƯ VIỆN -->
+      <main class="library-split is-hidden" id="libraryView" aria-label="Thư viện prompt">
+        <section class="library-list-pane" aria-label="Danh sách prompt">
+          <div class="cluster cluster--between">
+            <div class="cluster cluster--sm">
+              <h1 class="text-xl" id="libraryCollectionHeading">Tất cả</h1>
+              <span class="text-sm text-muted" id="libraryCountLabel">0 prompt</span>
+              <button type="button" class="btn btn--ghost btn--sm is-hidden" id="renameCollectionBtn">Đổi tên</button>
+              <button type="button" class="btn btn--ghost btn--sm is-hidden" id="deleteCollectionBtn">Xóa nhóm</button>
+            </div>
+            <button type="button" class="btn btn--primary" id="openPasteModalBtn">+ Thêm prompt</button>
+          </div>
+
+          <div class="cluster cluster--sm">
+            <label class="sidebar__search toolbar__spacer">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+              <span class="sr-only">Tìm trong thư viện</span>
+              <input type="search" class="sidebar__search-input" id="librarySearchInput" placeholder="Tìm theo tiêu đề hoặc nội dung (hỗ trợ không dấu)…">
+            </label>
+            <label class="inline-select-label">
+              <span>Sắp xếp</span>
+              <select class="select select--sm" id="librarySortSelect">
+                <option value="recent">Mở gần đây</option>
+                <option value="saved">Mới lưu</option>
+                <option value="title">Tên A–Z</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="stack stack--sm" id="libraryItemsList"></div>
+        </section>
+
+        <aside class="library-detail-pane" id="libraryDetailPane" aria-label="Chi tiết prompt">
+          <div class="empty-state" id="libraryEmptyDetail">
+            <div class="empty-state__title">Chọn một prompt để xem</div>
+            <p class="empty-state__desc">Xem toàn bộ nội dung, các phiên bản, ghim bản chuẩn hoặc mở lại trong Studio để tinh chỉnh tiếp.</p>
+          </div>
+
+          <div class="stack stack--md is-hidden" id="libraryActiveDetail">
+            <div class="stack stack--xs">
+              <span class="text-xs text-muted" id="libDetailCrumb"></span>
+              <h2 class="text-lg" id="libDetailTitle"></h2>
+              <p class="text-sm text-secondary is-hidden" id="libDetailDesc"></p>
+            </div>
+
+            <div class="cluster cluster--sm">
+              <button type="button" class="btn btn--primary btn--sm" id="libCopyBtn">Copy</button>
+              <button type="button" class="btn btn--secondary btn--sm" id="libOpenInStudioBtn">Mở trong Studio</button>
+              <label class="inline-select-label">
+                <span>Collection</span>
+                <select class="select select--sm" id="libMoveCollectionSelect"></select>
+              </label>
+              <span class="toolbar__spacer"></span>
+              <div class="dropdown">
+                <button type="button" class="btn btn--ghost btn--icon" id="libMoreBtn" aria-label="Thao tác khác với prompt" aria-controls="libMoreMenu">
+                  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
+                </button>
+                <div class="dropdown__menu" role="menu" id="libMoreMenu" aria-label="Thao tác khác với prompt">
+                  <button type="button" role="menuitem" class="dropdown__item" id="libRenamePromptBtn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>
+                    <span>Sửa tên</span>
+                  </button>
+                  <button type="button" role="menuitem" class="dropdown__item" id="libUnsaveBtn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4h12v16l-6-4-6 4z"/></svg>
+                    <span>Bỏ khỏi thư viện<span class="dropdown__hint">Vẫn còn trong Lịch sử</span></span>
+                  </button>
+                  <div class="dropdown__divider" role="separator"></div>
+                  <button type="button" role="menuitem" class="dropdown__item dropdown__item--danger" id="libDeletePromptBtn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"/></svg>
+                    <span>Xóa vĩnh viễn<span class="dropdown__hint">Xóa khỏi cả Thư viện và Lịch sử</span></span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <article class="api-block__body prompt-markdown" id="libDetailContent"></article>
+
+            <div class="stack stack--xs">
+              <div class="cluster cluster--between">
+                <span class="text-sm font-semibold">Phiên bản</span>
+                <span class="text-xs text-muted">Đổi bản lưu: Mở trong Studio → Cập nhật bản lưu</span>
+              </div>
+              <ol class="version-history-list" id="libVersionsList"></ol>
+            </div>
+
+            <span class="text-xs text-muted" id="libDetailTimestamps"></span>
+          </div>
+        </aside>
+      </main>
+    </div>
+  </div>
+
+  <!-- MODAL: Thêm prompt vào thư viện (design/add-prompt.html) -->
+  <div class="modal" id="pasteModal" role="dialog" aria-modal="true" aria-labelledby="pasteModalTitle">
+    <div class="modal__backdrop" id="pasteModalBackdrop"></div>
+    <section class="modal__dialog stack stack--md">
+      <header class="cluster cluster--between">
+        <h2 class="modal__title" id="pasteModalTitle">Thêm prompt vào thư viện</h2>
+        <button type="button" class="btn btn--ghost btn--icon" id="closePasteModalBtn" aria-label="Đóng"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      </header>
+
+      <div class="stack stack--md">
+        <div class="field">
+          <label for="pasteContentInput" class="field__label">Nội dung prompt</label>
+          <div class="ai-frame ai-frame--inset">
+            <textarea
+              id="pasteContentInput"
+              class="ai-frame__textarea ai-frame__textarea--mono"
+              rows="8"
+              placeholder="Dán nội dung prompt có sẵn của bạn vào đây (hỗ trợ biến dạng {{ten_bien}})…"></textarea>
+            <div class="cluster cluster--between text-xs text-muted">
+              <span class="var-pill is-hidden" id="pasteVarsBadge"></span>
+              <span class="toolbar__spacer"></span>
+              <span class="char-counter" id="pasteCharCounter">0 / 32.000</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-cols-2">
+          <div class="field">
+            <label for="pasteTitleInput" class="field__label">Tiêu đề</label>
+            <input type="text" class="input" id="pasteTitleInput" placeholder="Tự lấy từ dòng đầu tiên…">
+          </div>
+          <div class="field">
+            <label for="pasteCollectionSelect" class="field__label">Collection</label>
+            <select class="select" id="pasteCollectionSelect"></select>
+          </div>
+        </div>
+
+        <div class="field is-hidden" id="pasteNewCollectionField">
+          <label for="pasteNewCollectionInput" class="field__label">Tên collection mới</label>
+          <input type="text" class="input" id="pasteNewCollectionInput" placeholder="Ví dụ: Sản phẩm & UX">
+        </div>
+
+        <div class="field">
+          <label for="pasteDescInput" class="field__label">Mô tả <span class="text-muted">· không bắt buộc</span></label>
+          <input type="text" class="input" id="pasteDescInput" placeholder="Dùng khi chuẩn bị buổi phỏng vấn khám phá…">
+        </div>
+
+        <div class="alert alert--warning is-hidden" id="pasteDuplicateAlert" role="status">
+          <span>Prompt này đã có trong thư viện.</span>
+          <button type="button" class="btn btn--secondary btn--sm" id="openExistingDuplicateBtn">Mở bản đã lưu</button>
+        </div>
+
+        <div class="alert alert--error is-hidden" id="pasteErrorAlert" role="alert"></div>
+      </div>
+
+      <footer class="modal__footer cluster cluster--between">
+        <span class="text-xs text-muted">Tiêu đề tự lấy từ dòng đầu, có thể sửa tùy ý</span>
+        <div class="cluster cluster--sm">
+          <button type="button" class="btn btn--secondary" id="cancelPasteModalBtn">Hủy</button>
+          <button type="button" class="btn btn--primary" id="submitPasteBtn">Lưu vào thư viện</button>
+        </div>
+      </footer>
+    </section>
+  </div>
+
+  <!-- Toast (Hoàn tác, lỗi) & thông báo cho screen reader — điều khiển bởi ui.js -->
+  <div class="toast-region" id="toastRegion"></div>
+  <div class="sr-only" id="liveRegion" role="status" aria-live="polite"></div>
+
+  <script src="/api.js"></script>
+  <script src="/ui.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>
