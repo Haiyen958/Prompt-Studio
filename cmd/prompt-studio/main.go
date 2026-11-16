@@ -1,12 +1,16 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
-	"net/http"
+	"net"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"syscall"
+	"time"
 
 	"prompt-studio/internal/handlers"
 	"prompt-studio/internal/secrets"
@@ -69,8 +73,19 @@ func main() {
 		RequireToken: true,
 	})
 
-	fmt.Printf("Prompt Studio listening on http://%s/?token=%s (data-dir: %s)\n", *addr, sessionToken, resolvedDir)
-	if err := http.ListenAndServe(*addr, router); err != nil {
-		log.Fatalf("Server stopped: %v", err)
+	ln, err := net.Listen("tcp", *addr)
+	if err != nil {
+		log.Fatalf("Failed to listen on %s: %v", *addr, err)
 	}
+	fmt.Printf("Prompt Studio listening on http://%s/?token=%s (data-dir: %s)\n", *addr, sessionToken, resolvedDir)
+
+	// Ctrl+C / SIGTERM: stop streams (partial prompts are saved as incomplete versions),
+	// let handlers finish, then close the database via the deferred db.Close.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	if err := server.Run(ctx, ln, router, 10*time.Second); err != nil {
+		log.Printf("Server stopped: %v", err)
+		return
+	}
+	log.Printf("Prompt Studio stopped cleanly")
 }

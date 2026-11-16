@@ -658,17 +658,24 @@
 
   // After Stop, the server saves the partial version (or deletes a session that has no
   // output) only once it notices the disconnect. Retry briefly instead of racing it.
+  // After Stop the server persists the partial version once the aborted stream unwinds;
+  // poll with backoff (~3 s in total) instead of a fixed ~0.9 s window.
+  const STOP_RELOAD_DELAYS_MS = [150, 250, 400, 600, 800, 1000];
+
   async function reloadSessionAfterStop(sessionId, minVersions) {
-    for (let attempt = 0; attempt < 6; attempt++) {
+    let detail = null;
+    for (let attempt = 0; attempt <= STOP_RELOAD_DELAYS_MS.length; attempt++) {
       try {
-        const detail = await API.request("GET", `/api/sessions/${sessionId}`);
-        if ((detail.versions || []).length >= minVersions || attempt === 5) return detail;
+        detail = await API.request("GET", `/api/sessions/${sessionId}`);
+        if ((detail.versions || []).length >= minVersions) return detail;
       } catch (err) {
         if (err.status === 404) return null;
       }
-      await new Promise((resolve) => setTimeout(resolve, 150));
+      if (attempt < STOP_RELOAD_DELAYS_MS.length) {
+        await new Promise((resolve) => setTimeout(resolve, STOP_RELOAD_DELAYS_MS[attempt]));
+      }
     }
-    return null;
+    return detail;
   }
 
   async function startGenerate() {
