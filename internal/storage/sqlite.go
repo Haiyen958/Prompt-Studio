@@ -68,12 +68,12 @@ func OpenDB(dbPath string, secretStore ...*secrets.Store) (*sql.DB, error) {
 		return nil, err
 	}
 
-	if err := applyV2Schema(db); err != nil {
+	if err := migrateSchema(db, dbPath); err != nil {
 		_ = db.Close()
 		return nil, err
 	}
 
-	if err := ensureColumn(db, "prompt_versions", "target", "TEXT"); err != nil {
+	if err := seedDefaults(db); err != nil {
 		_ = db.Close()
 		return nil, err
 	}
@@ -99,26 +99,9 @@ func DefaultSettings() map[string]string {
 	}
 }
 
-func applyV2Schema(db *sql.DB) error {
-	statements := strings.Split(v2SchemaSQL, ";")
-	for _, stmt := range statements {
-		trimmed := strings.TrimSpace(stmt)
-		if trimmed == "" {
-			continue
-		}
-		if _, err := db.Exec(trimmed); err != nil {
-			if strings.Contains(strings.ToUpper(trimmed), "USING FTS5") {
-				// Fallback to standard unicode61 if custom tokenizer args unsupported
-				fallback := strings.Replace(trimmed, "tokenize = 'unicode61 remove_diacritics 2'", "tokenize = 'unicode61'", 1)
-				if _, fbErr := db.Exec(fallback); fbErr == nil {
-					continue
-				}
-				continue
-			}
-			return fmt.Errorf("v2 migration failed on %q: %w", trimmed, err)
-		}
-	}
-
+// seedDefaults inserts the system collection and default settings when missing.
+// It runs on every open and never overwrites user values.
+func seedDefaults(db *sql.DB) error {
 	_, err := db.Exec(
 		`INSERT OR IGNORE INTO collections (id, name, is_system, sort_order) VALUES (?, ?, 1, 9999)`,
 		SystemCollectionID, SystemCollectionName,
@@ -135,9 +118,15 @@ func applyV2Schema(db *sql.DB) error {
 	return nil
 }
 
+// execQuerier is satisfied by both *sql.DB and *sql.Tx.
+type execQuerier interface {
+	Query(query string, args ...any) (*sql.Rows, error)
+	Exec(query string, args ...any) (sql.Result, error)
+}
+
 // ensureColumn adds a nullable column to an existing table (additive migration);
 // it is a no-op when the column already exists.
-func ensureColumn(db *sql.DB, table, column, decl string) error {
+func ensureColumn(db execQuerier, table, column, decl string) error {
 	rows, err := db.Query(fmt.Sprintf(`PRAGMA table_info(%s)`, table))
 	if err != nil {
 		return err

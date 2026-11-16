@@ -86,6 +86,10 @@ func TestOpenDBAddsVersionTargetColumn(t *testing.T) {
 	if _, err := db.Exec(`ALTER TABLE prompt_versions DROP COLUMN target`); err != nil {
 		t.Fatalf("simulate legacy schema: %v", err)
 	}
+	// Databases from before schema versioning report user_version 0.
+	if _, err := db.Exec(`PRAGMA user_version = 0`); err != nil {
+		t.Fatalf("simulate pre-versioning database: %v", err)
+	}
 	_ = db.Close()
 
 	db2, err := OpenDB(dbPath, store)
