@@ -25,6 +25,7 @@ const (
 var (
 	validProviders = []string{"openai", "anthropic", "openai-compatible", "mock"}
 	validThemes    = []string{"dark", "light", "system"}
+	validAccents   = []string{"crimson", "indigo", "ocean", "emerald", "violet", "amber"}
 	validLanguages = []string{"match", "vi", "en"}
 	validTargets   = []string{"chat", "api", "agent"}
 )
@@ -50,6 +51,7 @@ type AppSettings struct {
 	MaxTokens        int
 	TimeoutSec       int
 	Theme            string
+	Accent           string
 	PromptLanguage   string
 	DefaultTarget    string
 	LastCollectionID string
@@ -81,6 +83,10 @@ func ParseSettings(kv map[string]string) AppSettings {
 	if err != nil || timeoutSec <= 0 {
 		timeoutSec = defInt("timeout_sec")
 	}
+	accent := strings.ToLower(get("accent"))
+	if !contains(validAccents, accent) {
+		accent = def["accent"]
+	}
 
 	return AppSettings{
 		Provider:         get("provider"),
@@ -90,6 +96,7 @@ func ParseSettings(kv map[string]string) AppSettings {
 		MaxTokens:        maxTok,
 		TimeoutSec:       timeoutSec,
 		Theme:            get("theme"),
+		Accent:           accent,
 		PromptLanguage:   get("prompt_language"),
 		DefaultTarget:    ai.NormalizeTarget(get("default_target")),
 		LastCollectionID: get("last_collection_id"),
@@ -108,6 +115,7 @@ type SettingsUpdate struct {
 	MaxTokens      *int
 	TimeoutSec     *int
 	Theme          *string
+	Accent         *string
 	PromptLanguage *string
 	DefaultTarget  *string
 	APIKey         *string
@@ -157,6 +165,13 @@ func (s *Service) UpdateSettings(u SettingsUpdate) (warning string, err error) {
 			return "", &InvalidSettingError{"theme", "phải là một trong " + strings.Join(validThemes, ", ")}
 		}
 		updates["theme"] = v
+	}
+	if v, ok := trimmedNonEmpty(u.Accent); ok {
+		low := strings.ToLower(v)
+		if !contains(validAccents, low) {
+			return "", &InvalidSettingError{"accent", "phải là một trong " + strings.Join(validAccents, ", ")}
+		}
+		updates["accent"] = low
 	}
 	if v, ok := trimmedNonEmpty(u.PromptLanguage); ok {
 		if !contains(validLanguages, v) {

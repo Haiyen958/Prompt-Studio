@@ -13,7 +13,6 @@ func NewRouter(svc *studio.Service, webFS fs.FS, secCfg server.SecurityConfig) h
 
 	settingsH := NewSettingsHandler(svc)
 	genH := NewGenerateHandler(svc)
-	cmpH := NewCompareHandler(svc)
 	sessH := NewSessionsHandler(svc)
 	verH := NewVersionsHandler(svc)
 	colH := NewCollectionsHandler(svc)
@@ -33,7 +32,6 @@ func NewRouter(svc *studio.Service, webFS fs.FS, secCfg server.SecurityConfig) h
 	mux.HandleFunc("POST /api/sessions/paste", sessH.PasteSession)
 	mux.HandleFunc("POST /api/sessions/{id}/refine", genH.RefinePrompt)
 	mux.HandleFunc("POST /api/sessions/{id}/versions", verH.CreateManualVersion)
-	mux.HandleFunc("POST /api/versions/{id}/compare", cmpH.CompareVersion)
 
 	mux.HandleFunc("GET /api/sessions", sessH.ListSessions)
 	mux.HandleFunc("GET /api/sessions/{id}", sessH.GetSession)

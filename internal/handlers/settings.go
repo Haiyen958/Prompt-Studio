@@ -31,6 +31,7 @@ type SettingsResponse struct {
 	MaxTokens        int     `json:"maxTokens"`
 	TimeoutSec       int     `json:"timeoutSec"`
 	Theme            string  `json:"theme"`
+	Accent           string  `json:"accent"`
 	PromptLanguage   string  `json:"promptLanguage"`
 	DefaultTarget    string  `json:"defaultTarget"`
 	LastCollectionID string  `json:"lastCollectionId"`
@@ -48,6 +49,7 @@ type UpdateSettingsRequest struct {
 	MaxTokens      *int     `json:"maxTokens"`
 	TimeoutSec     *int     `json:"timeoutSec"`
 	Theme          *string  `json:"theme"`
+	Accent         *string  `json:"accent"`
 	PromptLanguage *string  `json:"promptLanguage"`
 	DefaultTarget  *string  `json:"defaultTarget"`
 	APIKey         *string  `json:"apiKey"`
@@ -86,6 +88,7 @@ func (h *SettingsHandler) UpdateSettings(w http.ResponseWriter, r *http.Request)
 		MaxTokens:      req.MaxTokens,
 		TimeoutSec:     req.TimeoutSec,
 		Theme:          req.Theme,
+		Accent:         req.Accent,
 		PromptLanguage: req.PromptLanguage,
 		DefaultTarget:  req.DefaultTarget,
 		APIKey:         req.APIKey,
@@ -239,6 +242,7 @@ func (h *SettingsHandler) buildSettingsResponse() (*SettingsResponse, error) {
 		MaxTokens:        app.MaxTokens,
 		TimeoutSec:       app.TimeoutSec,
 		Theme:            app.Theme,
+		Accent:           app.Accent,
 		PromptLanguage:   app.PromptLanguage,
 		DefaultTarget:    app.DefaultTarget,
 		LastCollectionID: app.LastCollectionID,

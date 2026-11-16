@@ -79,3 +79,67 @@ func TestExtractAndFillVariablesAndTemplateDelimiters(t *testing.T) {
 		t.Fatalf("expected {{ten_khach_hang}} preserved verbatim in rendered template")
 	}
 }
+
+func TestStreamSplitterHighImpactPriorityCapsAndNormalization(t *testing.T) {
+	raw := "Prompt an toàn\n===META===\n" + `{
+		"intent": "Xóa dữ liệu trùng an toàn",
+		"assumptions": [
+			{"label": "Định dạng", "value": "SQL script", "alternatives": ["SQL script", "CLI tool", "  "], "impact": "low", "question": "Không nên giữ"},
+			{"label": "An toàn dữ liệu", "value": "Dry-run trước", "alternatives": ["Soft-delete", "Hard-delete"], "impact": "CRITICAL", "question": "Dữ liệu nào được phép xóa?"},
+			{"label": "Sao lưu", "value": "Tạo bảng backup", "alternatives": ["Dump ra file"], "impact": "high", "question": "Cơ chế sao lưu trước khi xóa?"},
+			{"label": "Phê duyệt", "value": "Chờ xác nhận tay", "alternatives": ["Chạy tự động"], "impact": "HIGH", "question": "Có cần duyệt tay không?"},
+			{"label": "Thừa mức cao thứ 4", "value": "Mặc định", "alternatives": ["Khác"], "impact": "high", "question": "Phải bị hạ xuống thường và cắt ở giới hạn 4"}
+		]
+	}`
+
+	sp := NewStreamSplitter(nil)
+	sp.Feed(raw)
+	res := sp.Finalize()
+	if !res.MetaPresent || !res.MetaValid {
+		t.Fatalf("expected valid meta, got %+v", res)
+	}
+	if len(res.Meta.Assumptions) != 4 {
+		t.Fatalf("expected total assumptions capped at 4, got %d: %+v", len(res.Meta.Assumptions), res.Meta.Assumptions)
+	}
+
+	// High-impact items (max 3) must be stable-sorted ahead of normal items.
+	wantLabels := []string{"An toàn dữ liệu", "Sao lưu", "Phê duyệt", "Định dạng"}
+	wantImpacts := []string{"high", "high", "high", ""}
+	for i := range wantLabels {
+		got := res.Meta.Assumptions[i]
+		if got.Label != wantLabels[i] || got.Impact != wantImpacts[i] {
+			t.Fatalf("assumption[%d] = {Label:%q Impact:%q}, want {Label:%q Impact:%q}",
+				i, got.Label, got.Impact, wantLabels[i], wantImpacts[i])
+		}
+	}
+	if res.Meta.Assumptions[0].Question != "Dữ liệu nào được phép xóa?" {
+		t.Fatalf("unexpected question on high-impact item: %q", res.Meta.Assumptions[0].Question)
+	}
+	if res.Meta.Assumptions[3].Question != "" {
+		t.Fatalf("normal assumption must not retain question, got %q", res.Meta.Assumptions[3].Question)
+	}
+	// Duplicate/blank/value-matching alternatives are stripped.
+	if len(res.Meta.Assumptions[3].Alternatives) != 1 || res.Meta.Assumptions[3].Alternatives[0] != "CLI tool" {
+		t.Fatalf("unexpected deduplicated alternatives: %+v", res.Meta.Assumptions[3].Alternatives)
+	}
+}
+
+func TestTemplates4TierRulesAndNoForcedAgentPlaceholders(t *testing.T) {
+	if GenerateTemplateVersion != "generate.v2.1" || RefineTemplateVersion != "refine.v2.1" {
+		t.Fatalf("unexpected template versions: %q / %q", GenerateTemplateVersion, RefineTemplateVersion)
+	}
+	agentPrompt, err := RenderGeneratePrompt(GenerateTemplateData{
+		Request:  "Sửa lỗi API thanh toán trả 500 khi trùng request",
+		Language: "vi",
+		Target:   "agent",
+	})
+	if err != nil {
+		t.Fatalf("RenderGeneratePrompt(agent): %v", err)
+	}
+	if strings.Contains(agentPrompt, "Dùng biến `{{pham_vi_module}}`") {
+		t.Fatalf("agent target guide still forces redundant {{pham_vi_module}} placeholder")
+	}
+	if !strings.Contains(agentPrompt, `"impact": "high"`) || !strings.Contains(agentPrompt, "khảo sát") {
+		t.Fatalf("expected 4-tier high-impact and repo-discovery rules in rendered agent meta-prompt")
+	}
+}

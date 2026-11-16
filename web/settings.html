@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="vi" data-theme="dark">
+<html lang="vi" data-theme="dark" data-accent="crimson">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -43,6 +43,13 @@
             Base URL <span class="text-muted">· chỉ cần khi chọn OpenAI-compatible</span>
           </label>
           <input type="url" class="input" id="baseUrlInput" placeholder="http://127.0.0.1:11434/v1">
+          <div class="cluster cluster--xs is-hidden" id="baseUrlPresets" aria-label="Điền nhanh Base URL">
+            <button type="button" class="chip" data-preset-url="http://127.0.0.1:11434/v1" data-preset-model="llama3.1">Ollama</button>
+            <button type="button" class="chip" data-preset-url="http://127.0.0.1:1234/v1" data-preset-model="">LM Studio</button>
+            <button type="button" class="chip" data-preset-url="https://openrouter.ai/api/v1" data-preset-model="">OpenRouter</button>
+            <button type="button" class="chip" data-preset-url="https://generativelanguage.googleapis.com/v1beta/openai" data-preset-model="gemini-2.5-flash">Gemini</button>
+            <button type="button" class="chip" data-preset-url="https://api.groq.com/openai/v1" data-preset-model="">Groq</button>
+          </div>
         </div>
 
         <div class="field">
@@ -122,6 +129,37 @@
               <option value="system">Theo hệ thống</option>
             </select>
           </label>
+        </div>
+
+        <div class="field">
+          <span class="field__label" id="accentPickerLabel">Màu chủ đạo</span>
+          <div class="accent-picker" id="accentPicker" role="group" aria-labelledby="accentPickerLabel">
+            <button type="button" class="accent-swatch is-selected" data-accent="crimson" aria-pressed="true">
+              <span class="accent-swatch__dot accent-swatch__dot--crimson" aria-hidden="true"></span>
+              <span class="accent-swatch__name">Đỏ San hô</span>
+            </button>
+            <button type="button" class="accent-swatch" data-accent="indigo" aria-pressed="false">
+              <span class="accent-swatch__dot accent-swatch__dot--indigo" aria-hidden="true"></span>
+              <span class="accent-swatch__name">Xanh Vũ trụ</span>
+            </button>
+            <button type="button" class="accent-swatch" data-accent="ocean" aria-pressed="false">
+              <span class="accent-swatch__dot accent-swatch__dot--ocean" aria-hidden="true"></span>
+              <span class="accent-swatch__name">Xanh Đại dương</span>
+            </button>
+            <button type="button" class="accent-swatch" data-accent="emerald" aria-pressed="false">
+              <span class="accent-swatch__dot accent-swatch__dot--emerald" aria-hidden="true"></span>
+              <span class="accent-swatch__name">Ngọc Lục bảo</span>
+            </button>
+            <button type="button" class="accent-swatch" data-accent="violet" aria-pressed="false">
+              <span class="accent-swatch__dot accent-swatch__dot--violet" aria-hidden="true"></span>
+              <span class="accent-swatch__name">Tím Thạch anh</span>
+            </button>
+            <button type="button" class="accent-swatch" data-accent="amber" aria-pressed="false">
+              <span class="accent-swatch__dot accent-swatch__dot--amber" aria-hidden="true"></span>
+              <span class="accent-swatch__name">Hổ phách</span>
+            </button>
+          </div>
+          <span class="field__hint">Áp dụng tức thì cho nút chính, tiêu đề gradient, viền chọn, focus ring và hiệu ứng AI trên cả giao diện Tối &amp; Sáng.</span>
         </div>
 
         <div class="card__footer cluster--between">

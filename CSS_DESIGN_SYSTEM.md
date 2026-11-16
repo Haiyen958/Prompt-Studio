@@ -17,13 +17,13 @@ Toàn bộ giao diện được quản lý cascade tường minh tại [web/styl
 
 | Thứ tự | Tầng (`@layer`) | File nguồn | Trách nhiệm |
 |---|---|---|---|
-| 1 | `tokens` | `web/css/01-tokens.css` | Toàn bộ CSS Custom Properties ngữ nghĩa trong `:root` (Warm Graphite Dark mặc định theo `design/tokens.css`) |
+| 1 | `tokens` | `web/css/01-tokens.css` | Toàn bộ CSS Custom Properties ngữ nghĩa trong `:root` (Midnight Navy & Crimson–Rose–Coral mặc định + `--swatch-*` cho bộ chọn màu chủ đạo) |
 | 2 | `reset` | `web/css/02-reset.css` | Chuẩn hóa box-sizing, margin, kế thừa font trên form controls |
 | 3 | `base` | `web/css/03-base.css` | Kiểu mặc định cho thẻ HTML (`body`, `h1–h4`, `a`, `code`, `:focus-visible`) |
 | 4 | `layout` | `web/css/04-layout.css` | Hệ thống bố cục vĩ mô: `.container`, `.grid` 12 cột, `.stack`, `.cluster`, `.sidebar-layout` |
 | 5 | `components` | `web/css/05-components.css` | 10 họ UI Component tái sử dụng chuẩn BEM (`.btn`, `.input`, `.card`, `.modal`…) |
-| 6 | `pages` | `web/css/06-pages.css`, `web/css/showcase.css` | Thành phần miền nghiệp vụ v2 (khung `.ai-frame` 4 trạng thái, `.result-card.is-streaming`, `.api-block`, `.assumption-chip`, `.compare-grid`, `.library-split`) |
-| 7 | `themes` | `web/css/07-themes.css` | Bảng token Warm Paper Light (`html[data-theme="light"]`) — **nguồn duy nhất**. "Theo hệ thống" được `applyThemePreference()` ([web/api.js](web/api.js)) quy đổi thành `light`/`dark`, nên không còn khối `data-theme="system"` trùng lặp |
+| 6 | `pages` | `web/css/06-pages.css`, `web/css/showcase.css` | Thành phần miền nghiệp vụ v2 (khung `.ai-frame` 4 trạng thái, `.result-card.is-streaming`, `.api-block`, `.assumption-chip`, `.library-split`, `.accent-picker`) |
+| 7 | `themes` | `web/css/07-themes.css` | Giao diện Sáng (`html[data-theme="light"]`) + 6 bảng màu chủ đạo (`data-accent="crimson\|indigo\|ocean\|emerald\|violet\|amber"`) cho cả Tối & Sáng. "Theo hệ thống" và bộ nhớ đệm khởi động (`ps_theme`, `ps_accent`) được `applyThemePreference()` ([web/api.js](web/api.js)) đồng bộ không dùng inline style |
 | 8 | `utilities` | `web/css/08-utilities.css` | Helper ngữ nghĩa (`.is-hidden`, `.sr-only`, `.text-truncate`, `.text-mono`) + thang chữ `.text-xs/sm/md/lg/xl`, `.font-medium/semibold` + `prefers-reduced-motion` |
 
 **Gốc rem:** `html` giữ `font-size: 100%` (16px). Chỉ `body` dùng `--text-base` (14px), nhờ đó mọi token `rem` khớp đúng giá trị px ghi trong tài liệu.
@@ -34,17 +34,17 @@ Toàn bộ giao diện được quản lý cascade tường minh tại [web/styl
 
 ---
 
-## 2. Hệ thống Design Tokens (v2 Warm Graphite & Warm Paper)
+## 2. Hệ thống Design Tokens (Midnight Navy & Crimson–Rose–Coral — P014)
 
 ### 2.1. Colors (`01-tokens.css` & `07-themes.css`)
-- **Surfaces:** `--color-bg` (`#111214` dark / `#F7F7F5` light), `--color-surface` (`#1A1C1F` / `#FFFFFF`), `--color-surface-subtle` (`#22252A` / `#EFEFEC`), `--color-surface-elevated` (`#262A30` / `#FFFFFF`), `--color-backdrop`
-- **Brand & Actions:** `--color-primary` (`#7C9BFF` dark / `#3B5BDB` light, kèm `-hover`, `-active`, `--color-on-primary`), `--color-secondary`, `--color-accent`, `--color-accent-soft`, `--color-accent-border`, `--color-accent-text`
-- **AI Active State Tokens (Quy tắc nghiêm ngặt):** `--ai-1` (`#B48CFF` / `#7950F2`) và `--ai-2` (`#5EEAD4` / `#0CA678`) **chỉ được phép dùng bên trong hiệu ứng khi AI đang phân tích hoặc đang stream** (`.ai-frame.is-busy`, `.ai-dot`, `.ai-caret`, `.result-card.is-streaming`), tuyệt đối không dùng cho nút bấm hay trang trí tĩnh.
-- **Domain Highlight Tokens:** `--color-var-text` & `--color-var-bg` (tô nổi bật biến `{{ten_bien}}`), `--color-role-system` & `--color-role-user` (nhãn khối `system` / `user` cho `target = "api"`).
-- **Typography:** `--color-text-primary` (`#ECECEA` / `#16171A`), `--color-text-body`, `--color-text-secondary`, `--color-text-muted`
-- **Borders & Dividers:** `--color-border`, `--color-border-strong`, `--color-divider`
-- **Semantic Status:** `--color-success` (`-soft`), `--color-warning` (`-soft`), `--color-error` (`-hover`, `-soft`, `-border`), `--color-on-danger` (chữ trên nền danger, đạt WCAG AA cả hai theme), `--color-info` (`-soft`)
-- **Interactive States:** `--state-hover-bg`, `--state-active-bg`, `--state-disabled-opacity`, `--focus-ring`, `--focus-ring-color`, `--focus-border-color`
+- **Surfaces & Ambient Glow:** `--color-bg` (`#070A18` dark / `#FAF9FC` light), `--color-sidebar-bg` (`#0A0E1F` / `#F3F1F8`), `--color-surface` (`#0C1124` / `#FFFFFF`), `--color-surface-subtle` (`#111730` / `#F0EEF6`), `--color-surface-elevated` (`#121936` / `#FFFFFF`), `--color-frame-bg` (`rgba(14, 19, 40, 0.88)` / `rgba(255, 255, 255, 0.94)`), `--bg-hero-glow` (radial crimson top glow), `--color-backdrop`
+- **Brand, Gradients & Selection:** `--color-primary` (`#C9304A` / `#BE2944`), `--color-on-primary` (`#FFFFFF`), `--gradient-primary` (`#C9304A → #B13A7A`, bóng `--shadow-primary`), `--gradient-hero` (`#EE4B5E → #E2549A → #F0904F`), `--gradient-brand` (`#E8475A → #D9488C`), `--color-link` (`#F2717F`, hover `#FF9AA5`), `--color-secondary`, `--color-accent`, `--color-accent-soft` (`rgba(232, 71, 90, 0.14)`), `--color-accent-border` (`rgba(242, 113, 127, 0.65)`), `--color-accent-text` (`#F7A1AA`)
+- **AI Active State Tokens (Quy tắc nghiêm ngặt):** `--ai-1` (`#EE4B5E`), `--ai-mid` (`#E2549A`) và `--ai-2` (`#F0904F`) **chỉ được phép dùng bên trong hiệu ứng khi AI đang phân tích hoặc đang stream** (`.ai-frame.is-busy`, `.ai-dot`, `.ai-caret`, `.result-card.is-streaming`), tuyệt đối không dùng cho nút bấm hay trang trí tĩnh.
+- **Domain Highlight Tokens:** `--color-var-text` (`#5EEAD4`) & `--color-var-bg` (`#0B2626`) tô nổi bật biến `{{ten_bien}}`, `--color-role-system` (`#93B4FF`) & `--color-role-user` (`#3DD68C`) cho nhãn `system` / `user`.
+- **Typography (7 vai trò ngữ nghĩa đạt chuẩn WCAG AA/AAA):** `--color-text-primary` (`#F3F4F8`), `--color-text-label` (`#E6E8F0`), `--color-text-chip` (`#DADDE8`), `--color-text-body` (`#DADDE8`), `--color-text-nav` (`#C3C8D8`), `--color-text-secondary` (`#A3A9BD`), `--color-text-muted` (`#8D94AB`), `--color-text-placeholder` (`#7E859C`).
+- **Borders & Dividers:** `--color-sidebar-border` (`#161B30`), `--color-divider` / `--color-border` (`#1C2238`), `--color-border-strong` (`#232A44`), `--color-border-dashed` (`#343C5C`).
+- **Semantic Status:** `--color-success` (`#3DD68C`), `--color-warning` (`#F5B95F`), `--color-error` (`#FF7A45` cam-đỏ tách biệt hẳn với sắc hồng đang chọn `#F7A1AA`), `--color-on-danger` (WCAG AA cả hai theme), `--color-info` (`#93B4FF`).
+- **Interactive States:** `--state-hover-bg`, `--state-active-bg`, `--state-disabled-opacity`, `--focus-ring`, `--focus-ring-color`, `--focus-border-color` (`#F2717F`).
 
 ### 2.2. Spacing Scale (Cơ sở 4px)
 Chỉ sử dụng thang đo từ `--space-1` (`4px` / `0.25rem`) đến `--space-16` (`64px` / `4rem`). Đặc biệt `--space-11` (`44px`) là chiều cao tối thiểu vùng chạm (touch target) chuẩn Mobile-First.
@@ -71,7 +71,7 @@ Chỉ sử dụng thang đo từ `--space-1` (`4px` / `0.25rem`) đến `--space
 ### 3.1. Breakpoints Chuẩn (`min-width`)
 Thiết kế luôn bắt đầu từ **Mobile (`< 640px`)** và mở rộng dần lên màn hình lớn:
 - `640px` (`--bp-sm`): Điện thoại ngang / Phablet (`.grid-cols-2` kích hoạt).
-- `768px` (`--bp-md`): Tablet dọc (`.grid-cols-3`, `.col-span-1..12` và `.compare-grid` 2 cột kích hoạt).
+- `768px` (`--bp-md`): Tablet dọc (`.grid-cols-3` và `.col-span-1..12` kích hoạt).
 - `1024px` (`--bp-lg`): Laptop / Tablet ngang (`.sidebar-layout` gắn cố định bên trái, `.library-split` 2 cột Master-Detail kích hoạt).
 - `1280px` (`--bp-xl`): Desktop rộng.
 
@@ -102,7 +102,7 @@ Thiết kế luôn bắt đầu từ **Mobile (`< 640px`)** và mở rộng dầ
 3. **Card, Result Card & 4-State AI Frame:** `.card` (`--subtle`, `--elevated`, `--compact`, `--interactive`), `.ai-frame` (`idle` / `.is-focused` viền nhấn + ring 1px / `.is-busy` xoay viền conic `--ai-1`/`--ai-2`, **không có quầng glow**), `.result-card` (`.is-streaming` quét tia sáng đáy + `.ai-caret`), `.api-block` (`system` / `user`), `.var-pill`.
 4. **Modal, Dropdown & Toast:** `.modal` (`__backdrop`, `__dialog` `--sm`, `__header`, `__body`, `__footer`; hộp thoại xác nhận/nhập do `UI.confirm`/`UI.prompt` tạo), `.dropdown` (`__menu[role=menu]`, `__item[role=menuitem]` `--danger`, `__hint`, `__divider`; điều khiển bằng `UI.bindMenu`: ↑↓ Home End Esc), `.toast-region` + `.toast` (`--error`, `__text`; có hành động Hoàn tác).
 5. **Tabs & Navigation:** `.tabs` (`__list`, `__tab`, `__panel`), `.segmented` (`--full`, `__btn`), `.nav-list`, `.nav-group-label`, `.nav-item` (là `<button>`; hàng có nút phụ dùng `.nav-item--split` + `.nav-item__link`). **Mọi phần tử bấm được trong danh sách phải là `<button>`/`<a>`, không dùng `<div>` gắn `click`.**
-6. **Badge, Assumption Chip, Starter Chip & Alert:** `.badge` (bo 2px), `.starter-chip`, `.assumption-chip` + `.assumption-popover` (dạng pill có chủ ý: giả định là thứ *sửa được*, không phải lệnh), `.chip`, `.status-dot`, `.alert`.
+6. **Badge, Assumption Chip, Starter Chip & Alert:** `.badge` (bo 2px), `.starter-chip`, `.assumption-chip` (`--high` cho điểm cần làm rõ ưu tiên cao) + `.assumption-popover` (`--high`, `__question`, `__current`; dạng pill có chủ ý: giả định là thứ *sửa được*, không phải lệnh), `.chip` (`--default-hint`), `.status-dot`, `.alert`.
 7. **Table & Pagination:** `.table-wrap` (`overflow-x: auto`), `.table` (`--compact`, `--striped`), `.pagination` (`__item`).
 8. **Toolbar & Filter Bar:** `.toolbar` (`--bordered`, `--sticky-mobile`, `__group`, `__spacer`), `.filter-bar`.
 9. **Tooltip & Popover:** `[data-tooltip="..."]` (thuần CSS hỗ trợ hover & focus bàn phím), `.popover` (`__header`, `__footer`).

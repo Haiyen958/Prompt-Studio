@@ -2,6 +2,7 @@ package studio
 
 import (
 	"strings"
+	"unicode/utf8"
 
 	"prompt-studio/internal/storage"
 )
@@ -20,11 +21,24 @@ func (s *Service) OpenSession(id string) (*storage.SessionDetail, error) {
 }
 
 func (s *Service) UpdateSession(id string, patch storage.SessionPatch) (*storage.Session, error) {
+	if patch.Title != nil {
+		trimmed := strings.TrimSpace(*patch.Title)
+		if trimmed == "" {
+			return nil, ErrSessionTitleEmpty
+		}
+		if utf8.RuneCountInString(trimmed) > MaxSessionTitleChars {
+			return nil, ErrSessionTitleTooLong
+		}
+		patch.Title = &trimmed
+	}
 	return s.repo.UpdateSession(id, patch)
 }
 
 // SaveSession saves to the Library and pins versionID (latest when empty).
 func (s *Service) SaveSession(id, collectionID, title, versionID string) (*storage.Session, error) {
+	if trimmed := strings.TrimSpace(title); utf8.RuneCountInString(trimmed) > MaxSessionTitleChars {
+		return nil, ErrSessionTitleTooLong
+	}
 	return s.repo.SaveSessionToLibrary(id, collectionID, title, versionID)
 }
 

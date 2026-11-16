@@ -20,6 +20,8 @@ type Assumption struct {
 	Label        string   `json:"label"`
 	Value        string   `json:"value"`
 	Alternatives []string `json:"alternatives,omitempty"`
+	Impact       string   `json:"impact,omitempty"`
+	Question     string   `json:"question,omitempty"`
 }
 
 type PromptMeta struct {
@@ -162,7 +164,8 @@ func (s *StreamSplitter) Finalize() SplitResult {
 	}
 
 	parsed.Intent = strings.TrimSpace(parsed.Intent)
-	var cleaned []Assumption
+	var highItems []Assumption
+	var normalItems []Assumption
 	for _, a := range parsed.Assumptions {
 		lbl := strings.TrimSpace(a.Label)
 		val := strings.TrimSpace(a.Value)
@@ -170,27 +173,66 @@ func (s *StreamSplitter) Finalize() SplitResult {
 			continue
 		}
 		var alts []string
+		seenAlt := map[string]struct{}{val: {}}
 		for _, alt := range a.Alternatives {
-			if t := strings.TrimSpace(alt); t != "" && t != val {
-				alts = append(alts, t)
+			t := strings.TrimSpace(alt)
+			if t == "" {
+				continue
 			}
+			if _, exists := seenAlt[t]; exists {
+				continue
+			}
+			seenAlt[t] = struct{}{}
+			alts = append(alts, t)
 			if len(alts) >= 3 {
 				break
 			}
 		}
-		cleaned = append(cleaned, Assumption{
+		impact := normalizeAssumptionImpact(a.Impact)
+		question := truncateRunes(strings.TrimSpace(a.Question), 180)
+		item := Assumption{
 			Label:        lbl,
 			Value:        val,
 			Alternatives: alts,
-		})
-		if len(cleaned) >= 4 {
-			break
+			Impact:       impact,
+			Question:     question,
 		}
+		if impact == "high" && len(highItems) < 3 {
+			highItems = append(highItems, item)
+		} else {
+			item.Impact = ""
+			item.Question = ""
+			normalItems = append(normalItems, item)
+		}
+	}
+	cleaned := append(highItems, normalItems...)
+	if len(cleaned) > 4 {
+		cleaned = cleaned[:4]
 	}
 	parsed.Assumptions = cleaned
 	res.Meta = parsed
 	res.MetaValid = true
 	return res
+}
+
+func normalizeAssumptionImpact(raw string) string {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "high", "critical":
+		return "high"
+	default:
+		return ""
+	}
+}
+
+func truncateRunes(s string, maxRunes int) string {
+	if s == "" || maxRunes <= 0 {
+		return ""
+	}
+	runes := []rune(s)
+	if len(runes) <= maxRunes {
+		return s
+	}
+	return strings.TrimSpace(string(runes[:maxRunes])) + "…"
 }
 
 func cleanJSONFence(raw string) string {

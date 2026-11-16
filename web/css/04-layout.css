@@ -39,6 +39,10 @@
     display: flex;
     flex-direction: column;
     padding-block: var(--space-8) var(--space-16);
+    background-image: var(--bg-hero-glow);
+    background-repeat: no-repeat;
+    background-size: 100% 24rem;
+    background-position: top center;
   }
 
   .page-header {
@@ -221,8 +225,8 @@
     width: min(85vw, var(--sidebar-width));
     height: 100vh;
     height: 100dvh;
-    background-color: var(--color-surface);
-    border-right: var(--border-thin) solid var(--color-border);
+    background-color: var(--color-sidebar-bg);
+    border-right: var(--border-thin) solid var(--color-sidebar-border);
     display: flex;
     flex-direction: column;
     z-index: var(--z-drawer);
@@ -255,6 +259,10 @@
     min-width: 0;
     display: flex;
     flex-direction: column;
+    background-image: var(--bg-hero-glow);
+    background-repeat: no-repeat;
+    background-size: 100% 24rem;
+    background-position: top center;
   }
 
   .mobile-header {
@@ -264,8 +272,8 @@
     gap: var(--space-3);
     min-height: var(--header-height);
     padding-inline: var(--space-4);
-    background-color: var(--color-surface);
-    border-bottom: var(--border-thin) solid var(--color-border);
+    background-color: var(--color-sidebar-bg);
+    border-bottom: var(--border-thin) solid var(--color-sidebar-border);
     position: sticky;
     top: 0;
     z-index: var(--z-header);

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="vi" data-theme="dark">
+<html lang="vi" data-theme="dark" data-accent="crimson">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -125,6 +125,7 @@
               </select>
             </label>
             <span class="badge badge--primary is-hidden" id="starterPresetBadge"></span>
+            <button type="button" class="chip chip--default-hint is-hidden" id="targetHintBtn"></button>
             <span class="toolbar__spacer"></span>
             <span class="char-counter" id="requestCharCounter">0 / 8.000</span>
             <button type="button" class="btn btn--primary" id="generateBtn" aria-describedby="unconfiguredBanner">
@@ -179,8 +180,9 @@
 
             <span class="toolbar__spacer"></span>
 
-            <button type="button" class="btn btn--secondary btn--sm" id="openCompareBtn">So sánh</button>
+            <button type="button" class="btn btn--ghost btn--sm is-hidden" id="toggleDiffBtn" aria-pressed="false">Xem thay đổi</button>
             <button type="button" class="btn btn--secondary btn--sm" id="saveSessionBtn" aria-pressed="false">Lưu</button>
+            <button type="button" class="btn btn--secondary btn--sm is-hidden" id="toggleStudioVarsBtn" aria-expanded="false" aria-controls="studioVarsDrawer">Điền biến</button>
             <button type="button" class="btn btn--primary btn--sm" id="copyPromptBtn">Copy</button>
             <div class="dropdown">
               <button type="button" class="btn btn--ghost btn--icon" id="resultMoreBtn" aria-label="Thao tác khác" aria-controls="resultMoreMenu">
@@ -219,6 +221,31 @@
             </div>
           </div>
 
+          <!-- Thanh điều khiển Xem thay đổi (Version Diff — D-P010-2) -->
+          <div class="diff-bar is-hidden" id="diffBar">
+            <label class="inline-select-label">
+              <span>So với</span>
+              <select class="select select--sm" id="diffBaseSelect" aria-label="Phiên bản gốc để so sánh"></select>
+            </label>
+            <span class="badge" id="diffStatsLabel">0 thay đổi</span>
+            <span class="toolbar__spacer"></span>
+            <button type="button" class="btn btn--ghost btn--sm" id="closeDiffBtn">Đóng</button>
+          </div>
+
+          <!-- Khung trượt Điền biến trước khi Copy (Inline panel — D-P010-1) -->
+          <div class="vars-drawer is-hidden" id="studioVarsDrawer" aria-label="Điền giá trị biến">
+            <div class="cluster cluster--between">
+              <span class="text-sm font-semibold">Điền giá trị cho biến trước khi Copy</span>
+              <span class="text-xs text-muted">Dùng chung giữa Studio và Thư viện · bản gốc không đổi</span>
+            </div>
+            <div class="grid-auto-fit" id="studioVarsInputs"></div>
+            <div class="cluster cluster--end cluster--sm">
+              <button type="button" class="btn btn--ghost btn--sm" id="clearStudioVarsBtn">Xóa giá trị</button>
+              <button type="button" class="btn btn--secondary btn--sm is-hidden" id="copyFilledApiJsonBtn">Copy JSON đã điền</button>
+              <button type="button" class="btn btn--primary btn--sm" id="copyFilledStudioBtn">Copy bản đã điền</button>
+            </div>
+          </div>
+
           <!-- Nội dung hiển thị hoặc sửa tay -->
           <div class="result-card__body">
             <div id="promptDisplayContainer"></div>
@@ -232,10 +259,11 @@
             </div>
           </div>
 
-          <!-- Chip giả định sửa được -->
+          <!-- Chip giả định sửa được & làm rõ điểm quan trọng inline -->
           <div class="assumptions-section is-hidden" id="assumptionsSection">
             <span class="assumptions-section__title">
-              AI đã giả định <span class="assumptions-section__hint">· bấm để đổi, prompt sẽ được viết lại</span>
+              <span id="assumptionsTitleMain">AI đã giả định</span>
+              <span class="assumptions-section__hint" id="assumptionsTitleHint">· bấm để đổi, prompt sẽ được viết lại</span>
             </span>
             <div class="cluster cluster--sm" id="assumptionsList"></div>
           </div>
@@ -264,70 +292,7 @@
         </section>
       </main>
 
-      <!-- 2. MÀN HÌNH SO SÁNH SONG SONG -->
-      <main class="compare-workspace is-hidden" id="compareView" aria-label="So sánh với yêu cầu gốc">
-        <div class="cluster cluster--between">
-          <div class="cluster cluster--md">
-            <button type="button" class="back-link" id="backFromCompareBtn">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
-              <span>Quay lại prompt</span>
-            </button>
-            <h1 class="text-lg">So sánh với yêu cầu gốc</h1>
-          </div>
-          <div class="cluster cluster--sm">
-            <span class="text-xs text-muted" id="compareSubMeta">2 lần gọi song song · kết quả không được lưu</span>
-            <button type="button" class="btn btn--secondary btn--sm" id="rerunCompareBtn">Chạy lại</button>
-          </div>
-        </div>
-
-        <details class="compare-help">
-          <summary>So sánh hoạt động thế nào?</summary>
-          <p>Cùng một model trả lời hai đầu vào: yêu cầu bạn gõ ban đầu và phiên bản prompt đang chọn. Đây là cách nhanh nhất để kiểm chứng prompt có thực sự hiệu quả hơn không.</p>
-        </details>
-
-        <!-- Khung điền Dữ liệu thử nếu prompt có {{biến}} -->
-        <section class="card stack stack--sm is-hidden" id="compareVarsCard" aria-label="Dữ liệu thử">
-          <div class="cluster cluster--between">
-            <span class="font-semibold text-sm">Dữ liệu thử cho các biến trong prompt</span>
-            <span class="text-xs text-muted">Điền một lần để áp dụng cho cả hai bên</span>
-          </div>
-          <div class="grid-auto-fit" id="compareVarsInputs"></div>
-          <div class="cluster cluster--end">
-            <button type="button" class="btn btn--primary btn--sm" id="runCompareWithVarsBtn">Chạy so sánh</button>
-          </div>
-        </section>
-
-        <div class="compare-grid">
-          <section class="compare-card" aria-label="Yêu cầu gốc">
-            <div class="compare-card__header">
-              <span class="compare-card__tag">Đầu vào A · Yêu cầu gốc</span>
-              <p class="compare-card__input-preview" id="compareRawInputPreview"></p>
-            </div>
-            <article class="compare-card__body prompt-markdown" id="compareRawOutput"></article>
-            <div class="compare-card__footer" id="compareRawFooter">Đang chờ…</div>
-          </section>
-
-          <section class="compare-card compare-card--prompt" aria-label="Prompt Studio">
-            <div class="compare-card__header">
-              <span class="compare-card__tag compare-card__tag--prompt" id="comparePromptTag">Đầu vào B · Prompt</span>
-              <p class="compare-card__input-preview" id="comparePromptInputPreview"></p>
-            </div>
-            <article class="compare-card__body prompt-markdown" id="comparePromptOutput"></article>
-            <div class="compare-card__footer" id="comparePromptFooter">Đang chờ…</div>
-          </section>
-        </div>
-
-        <div class="card card--compact cluster cluster--between">
-          <span class="text-sm">Kết quả B đã đủ tốt chưa?</span>
-          <div class="cluster cluster--sm">
-            <button type="button" class="btn btn--secondary btn--sm" id="compareRefineBtn">Chưa, tinh chỉnh prompt</button>
-            <button type="button" class="btn btn--secondary btn--sm" id="compareSaveBtn">Lưu vào thư viện</button>
-            <button type="button" class="btn btn--primary btn--sm" id="compareCopyBtn">Copy prompt</button>
-          </div>
-        </div>
-      </main>
-
-      <!-- 3. MÀN HÌNH THƯ VIỆN -->
+      <!-- 2. MÀN HÌNH THƯ VIỆN -->
       <main class="library-split is-hidden" id="libraryView" aria-label="Thư viện prompt">
         <section class="library-list-pane" aria-label="Danh sách prompt">
           <div class="cluster cluster--between">
@@ -368,12 +333,24 @@
           <div class="stack stack--md is-hidden" id="libraryActiveDetail">
             <div class="stack stack--xs">
               <span class="text-xs text-muted" id="libDetailCrumb"></span>
-              <h2 class="text-lg" id="libDetailTitle"></h2>
+              <div class="cluster cluster--between" id="libTitleRow">
+                <h2 class="text-lg" id="libDetailTitle"></h2>
+                <button type="button" class="btn btn--ghost btn--sm" id="libInlineRenameBtn">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>
+                  <span>Đổi tên</span>
+                </button>
+              </div>
+              <form class="cluster cluster--xs is-hidden" id="libInlineRenameForm">
+                <input type="text" class="input input--sm toolbar__spacer" id="libInlineRenameInput" maxlength="200" placeholder="Tên prompt…" aria-label="Tên prompt">
+                <button type="submit" class="btn btn--primary btn--sm" id="libInlineRenameSaveBtn">Lưu</button>
+                <button type="button" class="btn btn--ghost btn--sm" id="libInlineRenameCancelBtn">Hủy</button>
+              </form>
               <p class="text-sm text-secondary is-hidden" id="libDetailDesc"></p>
             </div>
 
             <div class="cluster cluster--sm">
               <button type="button" class="btn btn--primary btn--sm" id="libCopyBtn">Copy</button>
+              <button type="button" class="btn btn--secondary btn--sm is-hidden" id="toggleLibVarsBtn" aria-expanded="false" aria-controls="libVarsDrawer">Điền biến</button>
               <button type="button" class="btn btn--secondary btn--sm" id="libOpenInStudioBtn">Mở trong Studio</button>
               <label class="inline-select-label">
                 <span>Collection</span>
@@ -385,9 +362,13 @@
                   <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
                 </button>
                 <div class="dropdown__menu" role="menu" id="libMoreMenu" aria-label="Thao tác khác với prompt">
+                  <button type="button" role="menuitem" class="dropdown__item is-hidden" id="libCopyApiJsonBtn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4H6v16h2M16 4h2v16h-2"/></svg>
+                    <span>Copy JSON messages</span>
+                  </button>
                   <button type="button" role="menuitem" class="dropdown__item" id="libRenamePromptBtn">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>
-                    <span>Sửa tên</span>
+                    <span>Đổi tên</span>
                   </button>
                   <button type="button" role="menuitem" class="dropdown__item" id="libUnsaveBtn">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4h12v16l-6-4-6 4z"/></svg>
@@ -402,7 +383,20 @@
               </div>
             </div>
 
-            <article class="api-block__body prompt-markdown" id="libDetailContent"></article>
+            <div class="vars-drawer vars-drawer--card is-hidden" id="libVarsDrawer" aria-label="Điền giá trị biến">
+              <div class="cluster cluster--between">
+                <span class="text-sm font-semibold">Điền giá trị cho biến</span>
+                <span class="text-xs text-muted">Không làm đổi bản đã lưu</span>
+              </div>
+              <div class="grid-auto-fit" id="libVarsInputs"></div>
+              <div class="cluster cluster--end cluster--sm">
+                <button type="button" class="btn btn--ghost btn--sm" id="clearLibVarsBtn">Xóa giá trị</button>
+                <button type="button" class="btn btn--secondary btn--sm is-hidden" id="copyFilledLibApiJsonBtn">Copy JSON đã điền</button>
+                <button type="button" class="btn btn--primary btn--sm" id="copyFilledLibBtn">Copy bản đã điền</button>
+              </div>
+            </div>
+
+            <div id="libDetailContent"></div>
 
             <div class="stack stack--xs">
               <div class="cluster cluster--between">

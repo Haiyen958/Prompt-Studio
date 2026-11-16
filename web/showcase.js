@@ -9,12 +9,31 @@
     themeBtn.textContent = isLight ? "Đổi giao diện Tối" : "Đổi giao diện Sáng";
   }
 
+  function syncShowcaseAccents() {
+    const active = root.getAttribute("data-accent") || "crimson";
+    document.querySelectorAll("[data-accent]").forEach((btn) => {
+      const selected = btn.getAttribute("data-accent") === active;
+      btn.classList.toggle("is-selected", selected);
+      btn.setAttribute("aria-pressed", selected ? "true" : "false");
+    });
+  }
+
   themeBtn.addEventListener("click", () => {
     const next = root.getAttribute("data-theme") === "light" ? "dark" : "light";
     root.setAttribute("data-theme", next);
     syncThemeBtn();
   });
+
+  document.querySelectorAll("[data-accent]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const next = btn.getAttribute("data-accent") || "crimson";
+      root.setAttribute("data-accent", next);
+      syncShowcaseAccents();
+    });
+  });
+
   syncThemeBtn();
+  syncShowcaseAccents();
 
   // Xem thử 4 trạng thái khung AI v2 (Idle / Focused / Analyzing / Streaming)
   const demoFrame = document.getElementById("demoAiFrame");

@@ -93,14 +93,57 @@ const API = {
   },
 };
 
-function applyThemePreference(theme) {
+const VALID_ACCENTS = new Set(["crimson", "indigo", "ocean", "emerald", "violet", "amber"]);
+
+function normalizeAccentPreference(accent) {
+  const clean = String(accent || "").trim().toLowerCase();
+  return VALID_ACCENTS.has(clean) ? clean : "crimson";
+}
+
+function applyThemePreference(theme, accent) {
   const root = document.documentElement;
-  if (theme === "system") {
-    const prefersLight = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches;
-    root.setAttribute("data-theme", prefersLight ? "light" : "dark");
-  } else if (theme === "light") {
-    root.setAttribute("data-theme", "light");
-  } else {
-    root.setAttribute("data-theme", "dark");
+  if (theme !== undefined && theme !== null && theme !== "") {
+    if (theme === "system") {
+      const prefersLight = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches;
+      root.setAttribute("data-theme", prefersLight ? "light" : "dark");
+    } else if (theme === "light") {
+      root.setAttribute("data-theme", "light");
+    } else {
+      root.setAttribute("data-theme", "dark");
+    }
+    try {
+      if (typeof window !== "undefined" && window.localStorage) {
+        window.localStorage.setItem("ps_theme", theme);
+      }
+    } catch (_) {}
+  }
+
+  if (accent !== undefined && accent !== null && accent !== "") {
+    const resolvedAccent = normalizeAccentPreference(accent);
+    root.setAttribute("data-accent", resolvedAccent);
+    try {
+      if (typeof window !== "undefined" && window.localStorage) {
+        window.localStorage.setItem("ps_accent", resolvedAccent);
+      }
+    } catch (_) {}
+  } else if (!root.getAttribute("data-accent")) {
+    root.setAttribute("data-accent", "crimson");
   }
 }
+
+(function bootStoredAppearance() {
+  if (typeof document === "undefined" || !document.documentElement) return;
+  let storedTheme = "";
+  let storedAccent = "";
+  try {
+    if (typeof window !== "undefined" && window.localStorage) {
+      storedTheme = window.localStorage.getItem("ps_theme") || "";
+      storedAccent = window.localStorage.getItem("ps_accent") || "";
+    }
+  } catch (_) {}
+  if (storedTheme || storedAccent) {
+    applyThemePreference(storedTheme || undefined, storedAccent || undefined);
+  } else if (!document.documentElement.getAttribute("data-accent")) {
+    document.documentElement.setAttribute("data-accent", "crimson");
+  }
+})();

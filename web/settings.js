@@ -7,6 +7,19 @@
   let hasStoredKey = false;
   let replacingKey = false;
   let keyTestedOk = false;
+  let currentAccent = "crimson";
+
+  function syncAccentPicker(accent) {
+    const clean = String(accent || "crimson").trim().toLowerCase();
+    currentAccent = clean || "crimson";
+    const picker = el("accentPicker");
+    if (!picker) return;
+    picker.querySelectorAll("[data-accent]").forEach((btn) => {
+      const active = btn.getAttribute("data-accent") === currentAccent;
+      btn.classList.toggle("is-selected", active);
+      btn.setAttribute("aria-pressed", active ? "true" : "false");
+    });
+  }
 
   function show(node, visible) {
     if (!node) return;
@@ -99,6 +112,21 @@
     }
   }
 
+  function syncBaseUrlPresets() {
+    const presetsWrap = el("baseUrlPresets");
+    if (!presetsWrap) return;
+    const isCompat = el("providerSelect").value === "openai-compatible";
+    show(presetsWrap, isCompat);
+    if (!isCompat) return;
+    const norm = el("baseUrlInput").value.trim().replace(/\/+$/, "").toLowerCase();
+    presetsWrap.querySelectorAll("[data-preset-url]").forEach((chip) => {
+      const target = (chip.getAttribute("data-preset-url") || "").replace(/\/+$/, "").toLowerCase();
+      const active = Boolean(norm && norm === target);
+      chip.classList.toggle("is-selected", active);
+      chip.setAttribute("aria-pressed", active ? "true" : "false");
+    });
+  }
+
   function syncProviderUI() {
     const prov = el("providerSelect").value;
     const isCompat = prov === "openai-compatible";
@@ -111,6 +139,7 @@
     } else {
       el("baseUrlInput").placeholder = "http://127.0.0.1:11434/v1";
     }
+    syncBaseUrlPresets();
   }
 
   function syncKeyDisplay(keyHint) {
@@ -129,7 +158,9 @@
   async function loadSettings() {
     try {
       const s = await API.request("GET", "/api/settings");
-      applyThemePreference(s.theme || "dark");
+      currentAccent = s.accent || "crimson";
+      applyThemePreference(s.theme || "dark", currentAccent);
+      syncAccentPicker(currentAccent);
 
       el("providerSelect").value = s.provider || "openai";
       el("baseUrlInput").value = s.baseUrl || "";
@@ -192,6 +223,21 @@
     }
   }
 
+  async function saveGeneralPreferences() {
+    try {
+      const updated = await API.request("PUT", "/api/settings", {
+        theme: el("themeSelect").value,
+        accent: currentAccent,
+        promptLanguage: el("promptLanguageSelect").value,
+      });
+      currentAccent = updated.accent || currentAccent;
+      applyThemePreference(updated.theme || "dark", currentAccent);
+      syncAccentPicker(currentAccent);
+    } catch (err) {
+      showFeedback("error", `<span>Lỗi khi lưu tùy chọn giao diện: ${escapeHTML(err.message)}</span>`);
+    }
+  }
+
   async function saveAllSettings(e) {
     if (e) e.preventDefault();
     const payload = {
@@ -204,6 +250,7 @@
       timeoutSec: Number(el("timeoutInput").value) || 60,
       promptLanguage: el("promptLanguageSelect").value,
       theme: el("themeSelect").value,
+      accent: currentAccent,
       tested: keyTestedOk,
     };
 
@@ -221,7 +268,9 @@
 
     try {
       const updated = await API.request("PUT", "/api/settings", payload);
-      applyThemePreference(updated.theme || "dark");
+      currentAccent = updated.accent || currentAccent;
+      applyThemePreference(updated.theme || "dark", currentAccent);
+      syncAccentPicker(currentAccent);
       hasStoredKey = Boolean(updated.hasKey);
       replacingKey = false;
       el("apiKeyInput").value = "";
@@ -295,6 +344,31 @@
       syncProviderUI();
     });
 
+    el("baseUrlInput").addEventListener("input", () => {
+      keyTestedOk = false;
+      syncBaseUrlPresets();
+    });
+
+    if (el("baseUrlPresets")) {
+      el("baseUrlPresets")
+        .querySelectorAll("[data-preset-url]")
+        .forEach((chip) => {
+          chip.addEventListener("click", () => {
+            const url = chip.getAttribute("data-preset-url") || "";
+            const suggestedModel = chip.getAttribute("data-preset-model") || "";
+            el("baseUrlInput").value = url;
+            if (!el("modelInput").value.trim() && suggestedModel) {
+              el("modelInput").value = suggestedModel;
+            }
+            keyTestedOk = false;
+            fillModelSuggestions([]);
+            setModelHint("");
+            syncBaseUrlPresets();
+            el("modelInput").focus();
+          });
+        });
+    }
+
     el("apiKeyInput").addEventListener("input", () => {
       keyTestedOk = false;
     });
@@ -318,14 +392,26 @@
     el("testConnectionBtn").addEventListener("click", handleTestConnection);
     el("aiSettingsForm").addEventListener("submit", saveAllSettings);
 
-    // Auto-save theme & promptLanguage immediately when changed
+    // Auto-save general preferences (theme, accent, promptLanguage) immediately when changed
     el("themeSelect").addEventListener("change", () => {
-      applyThemePreference(el("themeSelect").value);
-      saveAllSettings();
+      applyThemePreference(el("themeSelect").value, currentAccent);
+      saveGeneralPreferences();
     });
     el("promptLanguageSelect").addEventListener("change", () => {
-      saveAllSettings();
+      saveGeneralPreferences();
     });
+    if (el("accentPicker")) {
+      el("accentPicker")
+        .querySelectorAll("[data-accent]")
+        .forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const nextAccent = btn.getAttribute("data-accent") || "crimson";
+            syncAccentPicker(nextAccent);
+            applyThemePreference(undefined, nextAccent);
+            saveGeneralPreferences();
+          });
+        });
+    }
 
     el("exportDataBtn").addEventListener("click", handleExportData);
     el("importDataBtn").addEventListener("click", () => el("importFileInput").click());

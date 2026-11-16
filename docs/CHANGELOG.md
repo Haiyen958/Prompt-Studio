@@ -2,6 +2,83 @@
 
 All notable approved changes, plans, and decisions for **Prompt Studio** are documented in this file.
 
+## [Unreleased] — 2026-11-16 (`P015-accent-color-presets`)
+
+### Decisions Locked (owner)
+- **`D-P015-1` (6 Curated Dual-Mode Accent Presets — Phương án 1):** Added 6 selectable primary/accent brand palettes (`crimson` default, `indigo`, `ocean`, `emerald`, `violet`, `amber`) driven exclusively by `html[data-accent="<preset>"]` in `web/css/07-themes.css` (`@layer themes`) across both Dark and Light modes, maintaining 100% WCAG 2.1 AA contrast (`>= 4.5:1`), zero inline styles, and zero raw colors outside `01-tokens.css` & `07-themes.css`.
+- **`D-P015-2` (End-to-End Persistence & Flash-Free Boot):** Persisted `accent` in SQLite `settings`, `GET/PUT /api/settings` (`400 invalid_settings` with `field: "accent"` on unknown presets), and JSON Export/Import (`sanitizeImportedSettings`), plus synchronous `localStorage` (`ps_theme`, `ps_accent`) boot restoration in `web/api.js`.
+- **`D-P015-3` (Decoupled General Preferences Auto-Save):** Updated `/settings` (`web/settings.js`) so changing `theme`, `accent`, or `promptLanguage` dispatches a partial `PUT /api/settings` without colliding with unsaved AI provider edits.
+
+### Added
+- `accent` setting default/validation/backup support in `internal/storage/{sqlite.go,export.go}`, `internal/studio/settings.go`, and `internal/handlers/settings.go`.
+- Dual-mode CSS presets (`indigo`, `ocean`, `emerald`, `violet`, `amber`), `--swatch-*` tokens, and `.accent-picker` / `.accent-swatch` component (`web/css/{01-tokens.css,06-pages.css,07-themes.css}`), wired into `/settings` (`web/settings.html`, `web/settings.js`), Studio (`web/app.js`, `web/api.js`), and `/showcase` (`web/showcase.html`, `web/showcase.js`).
+- Automated tests `TestAccentPresetSettingsAndBackupRoundtrip`, `TestSettingsAccentPickerAndBootAppearanceInNodeVM` (`internal/handlers/p011_test.go`), and `07-themes.css` / `settings.html` preset parity checks (`internal/handlers/p010_test.go`).
+
+## [Unreleased] — 2026-11-16 (`P014-midnight-crimson-theme`)
+
+### Decisions Locked (owner)
+- **`D-P014-1` (Midnight Navy & Crimson–Rose–Coral Palette + Subtle Ambient Polish):** Replaced the Warm Graphite palette with Midnight Navy surfaces (`#070A18` bg, `#0A0E1F` sidebar, `#0C1124` cards/inputs/chips, `rgba(14, 19, 40, 0.88)` `.ai-frame`), top radial crimson glow (`rgba(214, 58, 86, 0.26)`), 7-tier WCAG AA/AAA cool-slate typography (`#F3F4F8` down to `#7E859C` placeholder at `5.01:1`), `.brand__mark` gradient (`#E8475A → #D9488C`), `.studio-hero__title` gradient (`#EE4B5E → #E2549A → #F0904F`), and `.btn--primary` gradient (`#C9304A → #B13A7A`, white text `5.24:1–5.59:1` AA) with `--shadow-primary` (partially updating `D-P006-2`).
+- **`D-P014-2` (Single Primary CTA & Error Disambiguation):** Kept `+ Phiên mới` as `.btn--secondary` so `Tạo prompt` / `Copy` remain the sole visual hero per region, and shifted `--color-error` to Vermilion-Orange (`#FF7A45` on `#2C140E`) to avoid colliding with Rose–Pink selection/focus (`#F2717F` / `#F7A1AA`).
+- **`D-P014-3` (Harmonized Crimson–Rose Light Theme & Cohesive AI Conic Sweep):** Updated `html[data-theme="light"]` (`07-themes.css`) to a matching Crimson–Berry accent (`#BE2944 → #A62E6E`) and aligned `--ai-1` / `--ai-mid` / `--ai-2` with the brand spectrum.
+
+### Changed
+- `web/css/{01-tokens.css,03-base.css,04-layout.css,05-components.css,06-pages.css,07-themes.css}`: Wired semantic surface, border, dashed-border (`#343C5C`), typography, gradient, focus, status (`#3DD68C` connected dot), and AI motion tokens across Dark and Light themes.
+- `internal/handlers/p010_test.go` (`TestFrontendDOMIDsAndDesignSystemInvariants`): Added automated guards forbidding hardcoded `#hex` / `rgb()` / `rgba()` literals outside `01-tokens.css` & `07-themes.css` and verifying `07-themes.css` token parity with `:root`.
+
+## [Unreleased] — 2026-11-16 (`P013-library-prompt-rename`)
+
+### Added
+- Inline non-modal prompt renaming in Library (`#libInlineRenameBtn`, `#libInlineRenameForm` with `Enter` save / `Escape` cancel, quick rename action button on each `.library-item` card, and `#libMoreMenu` trigger), keeping Studio's active session title synchronized (`web/index.html`, `web/app.js`, `web/css/06-pages.css`, `web/ui.js`).
+- Backend `title` validation on `PATCH /api/sessions/{id}` and `PUT /api/sessions/{id}/save` (`studio.Service.UpdateSession`: rejects blank titles and titles exceeding `200` runes with `400` Vietnamese error messages) plus FTS5 rename search test (`TestLibraryPromptRenameValidationAndFTSSearch`).
+
+### Fixed
+- `storage.buildFTSQuery`: SQLite's `unicode61 remove_diacritics 2` tokenizer leaves Vietnamese stroked `đ`/`Đ` untouched; query-time `d`/`đ` expansion now allows accentless searches (e.g. `kiem dinh`, `doi ten`) to match existing and newly renamed titles immediately.
+
+## [Unreleased] — 2026-11-16 (`P012-remove-compare-feature`)
+
+### Decisions Locked (owner)
+- **`D-P012-1` (Remove Side-by-Side Compare End-to-End):** Removed the "So sánh với yêu cầu gốc" feature across the Studio UI (`#openCompareBtn`, `#compareView`, Compare JS state/handlers, `.compare-*` CSS), HTTP router (`POST /api/versions/{id}/compare`, `internal/handlers/compare.go`), and domain service (`CompareVersion`, `CheckComparable`, `CompareInput`, `MissingVariablesError`, `ErrCompareNotAllowed`, `ErrCompareIncomplete`, `formatTestDataAppendix`). Preserved `"Xem thay đổi"` (Version Diff, `D-P010-2`), `"Điền biến"` inline drawer (`D-P010-1`), and historical static mockup `design/compare.html`.
+- **`D-P012-2` (Retain Offline CLI `evals/` Blind Judge):** Kept `go run ./evals` (`evals/main.go`) intact as the developer CLI benchmark for Meta-Prompt quality verification.
+
+### Removed
+- `POST /api/versions/{id}/compare` route, `internal/handlers/compare.go`, `studio.Service.CompareVersion` + helpers, Studio `#openCompareBtn` + `#compareView` markup/JS, `.compare-*` CSS rules in `web/css/06-pages.css`, and Compare HTTP test cases.
+
+## [Unreleased] — 2026-11-16 (`P011-autofill-adaptive-clarification`)
+
+### Decisions Locked (owner)
+- **`D-P011-1` (4-Tier Variable Resolution & Auto-fill):** Meta-Prompt (`generate.v2.1` / `refine.v2.1`) and target guides resolve context across 4 tiers: explicitly stated details are filled directly into the prompt (never stripped into redundant `{{pham_vi_module}}`/`{{mo_ta_loi}}` placeholders), safe inferences populate `assumptions`, repository-discoverable facts (`language`, `framework`, file layout) are delegated to `target = "agent"` to inspect in the codebase, and runtime `{{ten_bien}}` placeholders are reserved strictly for `target = "api"` user payloads, external pasted-at-runtime data, or explicit reusable-template requests.
+- **`D-P011-2` (Non-Blocking Inline Adaptive Clarification):** Preserves `PLAN.md §1` (*no modal; result first, ask later*) and plain-text `===META===` streaming. Extends `ai.Assumption` / `storage.AssumptionRecord` additively with optional `impact: "high"` and `question` (zero SQLite schema migration, unchanged SSE `done` top-level keys). High-impact ambiguities apply a safe default in `v1`, sort ahead of normal assumptions (capped at 3 high-impact, 4 total), render as `.assumption-chip--high` with popover question + current default note, and automatically clear `impact: "high"` once confirmed/overridden via `source = "assumption"` refine.
+- **`D-P011-3` (Inline Target Auto-Detection Hint):** Studio detects strong coding-agent or system-prompt-API signals in `#requestInput` (with Unicode-safe Vietnamese boundaries, prioritizing `agent` over subject-matter `"API"` mentions) and surfaces a 1-click `#targetHintBtn` (`Gợi ý: Đổi sang …`) next to `#targetSelect` unless manually overridden for the current draft.
+
+### Added
+- Additive `impact` and `question` fields on `ai.Assumption` and `storage.AssumptionRecord`, priority sorting + max-3 high-impact cap in `StreamSplitter.Finalize()`, and `resolveConfirmedAssumption` in `studio.Service`.
+- Inline high-impact clarification UI (`.assumptions-section--needs-review`, `.assumption-chip--high`, `.assumption-popover--high`, `UI.icons.alertCircle`, `Escape` popover dismissal with focus return) and `#targetHintBtn` in Studio (`web/index.html`, `web/app.js`, `web/css/06-pages.css`, `web/ui.js`, `web/showcase.html`).
+- Expanded `evals/` to 23 scenarios (`risk-01`, `risk-02`, `reusable-01`, plus `expect_zero_vars`, `expect_min_vars`, `expect_high_impact`, `must_contain_any`, `forbid_placeholders` checks) and added `internal/handlers/p011_test.go` (including pure-Node VM DOM verification).
+
+### Changed
+- Upgraded `internal/ai/templates/{generate.v2.md,refine.v2.md,targets/*.md}` (`generate.v2.1` / `refine.v2.1`) and `internal/ai/mock.go` to eliminate over-templating on concrete one-shot requests (`targets/agent.md` no longer forces `{{pham_vi_module}}`/`{{mo_ta_loi}}`) and fixed `MockProvider.detectTargetFromMetaPrompt` to match exact target section headers.
+
+## [Unreleased] — 2026-11-16 (`P010-compare-library-vars-diff`)
+
+### Decisions Locked (owner)
+- **`D-P010-1`:** "Điền biến & Copy" in Studio and Library uses an inline collapsible drawer inside the result/detail card (no modal), sharing per-session variable values in memory with Compare; primary `Copy` continues to copy the raw template with `{{variables}}` in one click.
+- **`D-P010-2`:** "Xem thay đổi" (Version Diff) renders an inline line-by-line diff inside the result card, defaulting to the direct parent (`parent_id`) with a selector to compare against `v1` or any other version in the session.
+
+### Added
+- Inline Variable Fill & Copy (`#studioVarsDrawer`, `#libVarsDrawer`) in Studio and Library with `Copy bản đã điền` (plus `Copy JSON đã điền` when `target = "api"`), sharing typed variable values per session with Compare.
+- Inline line-by-line LCS Version Diff (`Xem thay đổi` + base version selector) and parent lineage labels (`· từ vN`) in Studio and Library version lists.
+- Compare UI: `Dừng` button while streaming, `Xem toàn bộ prompt / Thu gọn` toggle for Side B, and `Dữ liệu thử` preview under Side A.
+- Settings: quick `Base URL` preset chips (`Ollama`, `LM Studio`, `OpenRouter`, `Gemini`, `Groq`) when `OpenAI-compatible` is selected.
+- Markdown renderer: `h1`–`h4` hierarchy, `*italic*` (without corrupting `*` inside inline code), `> blockquote`, `---` horizontal rules, and GFM pipe tables (`.table-wrap > .table.table--compact`).
+- `TestFrontendDOMIDsAndDesignSystemInvariants` guarding DOM `id` lookups, zero inline styles, zero `!important`, and zero `#id` CSS selectors across embedded assets.
+
+### Fixed
+- `CompareHandler` / `studio.Service.CompareVersion`: `side_error` SSE payloads now use the Vietnamese error contract (`sseErrorPayload`) instead of raw English/internal error strings, and no longer emit a redundant top-level `error` event when both sides already reported `side_error`.
+- Compare UI: pressing `Escape` or clicking `Dừng` now strips `.ai-caret` and marks unfinished columns `"Đã dừng"` instead of freezing on `"Đang chạy…"`; `compareSaveBtn` syncs all 3 pin states (`Lưu vào thư viện` / `Đã lưu` / `Cập nhật bản lưu (vN)`) with toast feedback.
+- `storage.Repo.UnsaveSession`: runs in a transaction with `syncSessionFTSTx` so `sessions_fts` switches immediately from the unpinned version to the latest version.
+- `storage.Repo.ImportAll`: remaps `collection_id` and `last_collection_id` when an imported backup contains a collection matching an existing local collection name under a different ID (preventing `UNIQUE(collections.name)` failures), and filters imported `settings` to known valid keys/ranges.
+- Library detail view now splits `target = "api"` prompts on `===USER===` into two-part `system`/`user` `.api-block`s and exposes `Copy JSON messages` in the `⋯` menu.
+
 ## [Unreleased] — 2026-11-16 (`P009-settings-model-picker`)
 
 ### Decisions Locked (owner)

@@ -1,77 +1,352 @@
 /* ==========================================================================
-   7. THEMES — Warm Paper Light Theme
-   Matches design/tokens.css [data-theme="light"].
-   "Theo hệ thống" is resolved to light/dark by applyThemePreference() in
-   api.js, so this is the single source of light tokens (no duplicate block).
+   7. THEMES — Light Mode & 6 Curated Primary/Accent Presets (P014, P015)
+   - Default Dark ("crimson") lives in 01-tokens.css (:root).
+   - Default Light ("crimson") lives in html[data-theme="light"].
+   - 5 alternate accents ("indigo", "ocean", "emerald", "violet", "amber")
+     each provide mutually exclusive Dark and Light token overrides verified
+     against WCAG 2.1 AA (>= 4.5:1).
    ========================================================================== */
 
 @layer themes {
   html[data-theme="light"] {
     color-scheme: light;
 
-    --color-bg: #f7f7f5;
+    --color-bg: #faf9fc;
+    --color-sidebar-bg: #f3f1f8;
     --color-surface: #ffffff;
-    --color-surface-subtle: #f2f2ef;
+    --color-surface-subtle: #f0eef6;
     --color-surface-elevated: #ffffff;
-    --color-backdrop: rgba(26, 26, 25, 0.42);
+    --color-frame-bg: rgba(255, 255, 255, 0.94);
+    --bg-hero-glow: radial-gradient(ellipse 68% 36% at 50% 0%, rgba(214, 58, 86, 0.09) 0%, transparent 72%);
+    --color-backdrop: rgba(12, 17, 36, 0.44);
 
-    --color-primary: #3b5bdb;
-    --color-primary-hover: #3350c4;
-    --color-primary-active: #2b47b8;
+    --color-primary: #be2944;
+    --color-primary-hover: #a8223a;
+    --color-primary-active: #921c31;
     --color-on-primary: #ffffff;
+    --gradient-primary: linear-gradient(135deg, #be2944 0%, #a62e6e 100%);
+    --gradient-primary-hover: linear-gradient(135deg, #a8223a 0%, #932660 100%);
+    --shadow-primary: 0 4px 14px rgba(190, 41, 68, 0.24);
+    --gradient-hero: linear-gradient(90deg, #d62f49 0%, #bf327d 52%, #d46a28 100%);
+    --gradient-brand: linear-gradient(135deg, #d9354a 0%, #c23579 100%);
 
-    --color-secondary: #f2f2ef;
-    --color-secondary-hover: #e7e7e2;
-    --color-secondary-active: #dcdcd6;
-    --color-on-secondary: #1a1a19;
+    --color-link: #b82540;
+    --color-link-hover: #921c31;
 
-    --color-accent: #3b5bdb;
-    --color-accent-soft: #edf1fd;
-    --color-accent-border: #bac8ff;
-    --color-accent-text: #2b47b8;
+    --color-secondary: #f0eef6;
+    --color-secondary-hover: #e5e2ee;
+    --color-secondary-active: #dad6e6;
+    --color-on-secondary: #141726;
 
-    --color-text-primary: #1a1a19;
-    --color-text-body: #2a2a28;
-    --color-text-secondary: #5f5f5a;
-    --color-text-muted: #6b6b66;
+    --color-accent: #be2944;
+    --color-accent-soft: rgba(201, 48, 74, 0.1);
+    --color-accent-border: rgba(190, 41, 68, 0.45);
+    --color-accent-text: #a8203b;
 
-    --color-border: #e4e4e0;
-    --color-border-strong: #d6d6d1;
-    --color-divider: #ecece8;
+    --color-text-primary: #141726;
+    --color-text-label: #1f2438;
+    --color-text-chip: #252b42;
+    --color-text-body: #252b42;
+    --color-text-nav: #363d59;
+    --color-text-secondary: #525975;
+    --color-text-muted: #666d8a;
+    --color-text-placeholder: #737a96;
 
-    --color-success: #1e5e2c;
-    --color-success-border: #b2dfbd;
-    --color-success-soft: #eaf6ed;
+    --color-sidebar-border: #e3e0ed;
+    --color-divider: #eae7f2;
+    --color-border: #e3e0ed;
+    --color-border-strong: #cfcbe0;
+    --color-border-dashed: #b5b0cc;
 
-    --color-warning: #6b4a0b;
-    --color-warning-border: #f0d49a;
-    --color-warning-soft: #fdf6e7;
+    --color-success: #166534;
+    --color-success-border: #a7f3d0;
+    --color-success-soft: #ecfdf5;
 
-    --color-error: #b42318;
-    --color-error-hover: #912018;
-    --color-error-border: #f4c7c3;
-    --color-error-soft: #fef3f2;
+    --color-warning: #78450a;
+    --color-warning-border: #fde68a;
+    --color-warning-soft: #fffbeb;
+
+    --color-error: #c23b1e;
+    --color-error-hover: #9f2f17;
+    --color-error-border: #fecaca;
+    --color-error-soft: #fef2f2;
     --color-on-danger: #ffffff;
 
-    --color-info: #3b5bdb;
-    --color-info-soft: #edf1fd;
+    --color-info: #2b4acb;
+    --color-info-soft: #eef2ff;
 
     --color-var-bg: #e6f7f3;
     --color-var-text: #0f5c4d;
-    --color-role-system: #2b47b8;
-    --color-role-user: #1e5e2c;
+    --color-role-system: #2b4acb;
+    --color-role-user: #166534;
 
-    --state-hover-bg: rgba(26, 26, 25, 0.045);
-    --state-active-bg: rgba(26, 26, 25, 0.085);
-    --focus-ring-color: rgba(59, 91, 219, 0.35);
-    --focus-border-color: #748ffc;
+    --state-hover-bg: rgba(20, 23, 38, 0.045);
+    --state-active-bg: rgba(20, 23, 38, 0.085);
+    --focus-ring-color: rgba(190, 41, 68, 0.32);
+    --focus-border-color: #d94862;
 
-    --shadow-xs: 0 1px 2px rgba(26, 26, 25, 0.05);
-    --shadow-sm: 0 2px 8px rgba(26, 26, 25, 0.08);
-    --shadow-md: 0 10px 28px rgba(26, 26, 25, 0.12);
-    --shadow-lg: 0 24px 60px rgba(26, 26, 25, 0.18);
+    --shadow-xs: 0 1px 2px rgba(20, 23, 38, 0.05);
+    --shadow-sm: 0 2px 8px rgba(20, 23, 38, 0.08);
+    --shadow-md: 0 10px 28px rgba(20, 23, 38, 0.12);
+    --shadow-lg: 0 24px 60px rgba(20, 23, 38, 0.18);
 
-    --ai-1: #9775fa;
-    --ai-2: #20c997;
+    --ai-1: #d9354a;
+    --ai-mid: #c23579;
+    --ai-2: #d97724;
+  }
+
+  /* ------------------------------------------------------------------------
+     Accent 2: INDIGO — Xanh Vũ trụ (Indigo -> Violet -> Cyan)
+     ------------------------------------------------------------------------ */
+  html:not([data-theme="light"])[data-accent="indigo"] {
+    --bg-hero-glow: radial-gradient(ellipse 68% 38% at 50% 0%, rgba(99, 102, 241, 0.25) 0%, transparent 72%);
+    --color-primary: #4338ca;
+    --color-primary-hover: #4f46e5;
+    --color-primary-active: #3730a3;
+    --color-on-primary: #ffffff;
+    --gradient-primary: linear-gradient(135deg, #4338ca 0%, #6d28d9 100%);
+    --gradient-primary-hover: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+    --shadow-primary: 0 6px 20px rgba(79, 70, 229, 0.38);
+    --gradient-hero: linear-gradient(90deg, #7c9bff 0%, #a78bfa 52%, #5eead4 100%);
+    --gradient-brand: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    --color-link: #8da8ff;
+    --color-link-hover: #b2c5ff;
+    --color-accent: #8da8ff;
+    --color-accent-soft: rgba(99, 102, 241, 0.15);
+    --color-accent-border: rgba(141, 168, 255, 0.65);
+    --color-accent-text: #bac8ff;
+    --focus-ring-color: rgba(141, 168, 255, 0.42);
+    --focus-border-color: #8da8ff;
+    --ai-1: #7c9bff;
+    --ai-mid: #a78bfa;
+    --ai-2: #5eead4;
+  }
+
+  html[data-theme="light"][data-accent="indigo"] {
+    --bg-hero-glow: radial-gradient(ellipse 68% 36% at 50% 0%, rgba(99, 102, 241, 0.1) 0%, transparent 72%);
+    --color-primary: #3730a3;
+    --color-primary-hover: #312e81;
+    --color-primary-active: #29256e;
+    --color-on-primary: #ffffff;
+    --gradient-primary: linear-gradient(135deg, #3730a3 0%, #5b21b6 100%);
+    --gradient-primary-hover: linear-gradient(135deg, #312e81 0%, #4c1d95 100%);
+    --shadow-primary: 0 4px 14px rgba(55, 48, 163, 0.24);
+    --gradient-hero: linear-gradient(90deg, #3730a3 0%, #6d28d9 52%, #0e7490 100%);
+    --gradient-brand: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+    --color-link: #3730a3;
+    --color-link-hover: #29256e;
+    --color-accent: #3730a3;
+    --color-accent-soft: rgba(67, 56, 202, 0.1);
+    --color-accent-border: rgba(67, 56, 202, 0.45);
+    --color-accent-text: #312e81;
+    --focus-ring-color: rgba(67, 56, 202, 0.32);
+    --focus-border-color: #4f46e5;
+    --ai-1: #4f46e5;
+    --ai-mid: #7c3aed;
+    --ai-2: #0891b2;
+  }
+
+  /* ------------------------------------------------------------------------
+     Accent 3: OCEAN — Xanh Đại dương (Sky -> Blue -> Teal)
+     ------------------------------------------------------------------------ */
+  html:not([data-theme="light"])[data-accent="ocean"] {
+    --bg-hero-glow: radial-gradient(ellipse 68% 38% at 50% 0%, rgba(14, 165, 233, 0.24) 0%, transparent 72%);
+    --color-primary: #0369a1;
+    --color-primary-hover: #075985;
+    --color-primary-active: #0c4a6e;
+    --color-on-primary: #ffffff;
+    --gradient-primary: linear-gradient(135deg, #0369a1 0%, #1d4ed8 100%);
+    --gradient-primary-hover: linear-gradient(135deg, #075985 0%, #1e40af 100%);
+    --shadow-primary: 0 6px 20px rgba(2, 132, 199, 0.36);
+    --gradient-hero: linear-gradient(90deg, #38bdf8 0%, #60a5fa 52%, #2dd4bf 100%);
+    --gradient-brand: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%);
+    --color-link: #56ccf2;
+    --color-link-hover: #8ce0ff;
+    --color-accent: #56ccf2;
+    --color-accent-soft: rgba(14, 165, 233, 0.15);
+    --color-accent-border: rgba(86, 204, 242, 0.65);
+    --color-accent-text: #93ddff;
+    --focus-ring-color: rgba(86, 204, 242, 0.4);
+    --focus-border-color: #56ccf2;
+    --ai-1: #38bdf8;
+    --ai-mid: #60a5fa;
+    --ai-2: #2dd4bf;
+  }
+
+  html[data-theme="light"][data-accent="ocean"] {
+    --bg-hero-glow: radial-gradient(ellipse 68% 36% at 50% 0%, rgba(14, 165, 233, 0.1) 0%, transparent 72%);
+    --color-primary: #0369a1;
+    --color-primary-hover: #075985;
+    --color-primary-active: #0c4a6e;
+    --color-on-primary: #ffffff;
+    --gradient-primary: linear-gradient(135deg, #0369a1 0%, #1d4ed8 100%);
+    --gradient-primary-hover: linear-gradient(135deg, #075985 0%, #1e40af 100%);
+    --shadow-primary: 0 4px 14px rgba(3, 105, 161, 0.24);
+    --gradient-hero: linear-gradient(90deg, #0284c7 0%, #1d4ed8 52%, #0f766e 100%);
+    --gradient-brand: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
+    --color-link: #0369a1;
+    --color-link-hover: #0c4a6e;
+    --color-accent: #0369a1;
+    --color-accent-soft: rgba(3, 105, 161, 0.1);
+    --color-accent-border: rgba(3, 105, 161, 0.45);
+    --color-accent-text: #075985;
+    --focus-ring-color: rgba(3, 105, 161, 0.32);
+    --focus-border-color: #0284c7;
+    --ai-1: #0284c7;
+    --ai-mid: #2563eb;
+    --ai-2: #0d9488;
+  }
+
+  /* ------------------------------------------------------------------------
+     Accent 4: EMERALD — Ngọc Lục bảo (Emerald -> Teal -> Sky)
+     ------------------------------------------------------------------------ */
+  html:not([data-theme="light"])[data-accent="emerald"] {
+    --bg-hero-glow: radial-gradient(ellipse 68% 38% at 50% 0%, rgba(16, 185, 129, 0.22) 0%, transparent 72%);
+    --color-primary: #0f766e;
+    --color-primary-hover: #115e59;
+    --color-primary-active: #134e4a;
+    --color-on-primary: #ffffff;
+    --gradient-primary: linear-gradient(135deg, #0f766e 0%, #047857 100%);
+    --gradient-primary-hover: linear-gradient(135deg, #115e59 0%, #065f46 100%);
+    --shadow-primary: 0 6px 20px rgba(13, 148, 136, 0.36);
+    --gradient-hero: linear-gradient(90deg, #34d399 0%, #2dd4bf 52%, #60a5fa 100%);
+    --gradient-brand: linear-gradient(135deg, #10b981 0%, #14b8a6 100%);
+    --color-link: #4ade80;
+    --color-link-hover: #86efac;
+    --color-accent: #4ade80;
+    --color-accent-soft: rgba(16, 185, 129, 0.14);
+    --color-accent-border: rgba(74, 222, 128, 0.6);
+    --color-accent-text: #86efac;
+    --focus-ring-color: rgba(74, 222, 128, 0.38);
+    --focus-border-color: #4ade80;
+    --ai-1: #34d399;
+    --ai-mid: #2dd4bf;
+    --ai-2: #60a5fa;
+  }
+
+  html[data-theme="light"][data-accent="emerald"] {
+    --bg-hero-glow: radial-gradient(ellipse 68% 36% at 50% 0%, rgba(16, 185, 129, 0.1) 0%, transparent 72%);
+    --color-primary: #0f766e;
+    --color-primary-hover: #115e59;
+    --color-primary-active: #134e4a;
+    --color-on-primary: #ffffff;
+    --gradient-primary: linear-gradient(135deg, #0f766e 0%, #047857 100%);
+    --gradient-primary-hover: linear-gradient(135deg, #115e59 0%, #065f46 100%);
+    --shadow-primary: 0 4px 14px rgba(15, 118, 110, 0.24);
+    --gradient-hero: linear-gradient(90deg, #047857 0%, #0f766e 52%, #0369a1 100%);
+    --gradient-brand: linear-gradient(135deg, #059669 0%, #0d9488 100%);
+    --color-link: #0f766e;
+    --color-link-hover: #134e4a;
+    --color-accent: #0f766e;
+    --color-accent-soft: rgba(15, 118, 110, 0.1);
+    --color-accent-border: rgba(15, 118, 110, 0.45);
+    --color-accent-text: #065f46;
+    --focus-ring-color: rgba(15, 118, 110, 0.32);
+    --focus-border-color: #0d9488;
+    --ai-1: #059669;
+    --ai-mid: #0d9488;
+    --ai-2: #0284c7;
+  }
+
+  /* ------------------------------------------------------------------------
+     Accent 5: VIOLET — Tím Thạch anh (Purple -> Fuchsia -> Coral)
+     ------------------------------------------------------------------------ */
+  html:not([data-theme="light"])[data-accent="violet"] {
+    --bg-hero-glow: radial-gradient(ellipse 68% 38% at 50% 0%, rgba(168, 85, 247, 0.25) 0%, transparent 72%);
+    --color-primary: #7e22ce;
+    --color-primary-hover: #6b21a8;
+    --color-primary-active: #581c87;
+    --color-on-primary: #ffffff;
+    --gradient-primary: linear-gradient(135deg, #7e22ce 0%, #a21caf 100%);
+    --gradient-primary-hover: linear-gradient(135deg, #6b21a8 0%, #86198f 100%);
+    --shadow-primary: 0 6px 20px rgba(147, 51, 234, 0.38);
+    --gradient-hero: linear-gradient(90deg, #c084fc 0%, #f472b6 52%, #fb923c 100%);
+    --gradient-brand: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+    --color-link: #d896ff;
+    --color-link-hover: #eebfff;
+    --color-accent: #d896ff;
+    --color-accent-soft: rgba(168, 85, 247, 0.15);
+    --color-accent-border: rgba(216, 150, 255, 0.65);
+    --color-accent-text: #f0abfc;
+    --focus-ring-color: rgba(216, 150, 255, 0.42);
+    --focus-border-color: #d896ff;
+    --ai-1: #c084fc;
+    --ai-mid: #f472b6;
+    --ai-2: #fb923c;
+  }
+
+  html[data-theme="light"][data-accent="violet"] {
+    --bg-hero-glow: radial-gradient(ellipse 68% 36% at 50% 0%, rgba(168, 85, 247, 0.1) 0%, transparent 72%);
+    --color-primary: #6b21a8;
+    --color-primary-hover: #581c87;
+    --color-primary-active: #4c1d95;
+    --color-on-primary: #ffffff;
+    --gradient-primary: linear-gradient(135deg, #6b21a8 0%, #86198f 100%);
+    --gradient-primary-hover: linear-gradient(135deg, #581c87 0%, #701a75 100%);
+    --shadow-primary: 0 4px 14px rgba(107, 33, 168, 0.24);
+    --gradient-hero: linear-gradient(90deg, #7e22ce 0%, #a21caf 52%, #c2410c 100%);
+    --gradient-brand: linear-gradient(135deg, #7e22ce 0%, #be185d 100%);
+    --color-link: #6b21a8;
+    --color-link-hover: #4c1d95;
+    --color-accent: #6b21a8;
+    --color-accent-soft: rgba(107, 33, 168, 0.1);
+    --color-accent-border: rgba(107, 33, 168, 0.45);
+    --color-accent-text: #581c87;
+    --focus-ring-color: rgba(107, 33, 168, 0.32);
+    --focus-border-color: #9333ea;
+    --ai-1: #9333ea;
+    --ai-mid: #c026d3;
+    --ai-2: #ea580c;
+  }
+
+  /* ------------------------------------------------------------------------
+     Accent 6: AMBER — Hổ phách (Amber -> Orange -> Rose)
+     ------------------------------------------------------------------------ */
+  html:not([data-theme="light"])[data-accent="amber"] {
+    --bg-hero-glow: radial-gradient(ellipse 68% 38% at 50% 0%, rgba(245, 158, 11, 0.22) 0%, transparent 72%);
+    --color-primary: #b45309;
+    --color-primary-hover: #92400e;
+    --color-primary-active: #78350f;
+    --color-on-primary: #ffffff;
+    --gradient-primary: linear-gradient(135deg, #b45309 0%, #be123c 100%);
+    --gradient-primary-hover: linear-gradient(135deg, #92400e 0%, #9f1239 100%);
+    --shadow-primary: 0 6px 20px rgba(180, 83, 9, 0.38);
+    --gradient-hero: linear-gradient(90deg, #fbbf24 0%, #fb923c 52%, #f472b6 100%);
+    --gradient-brand: linear-gradient(135deg, #f59e0b 0%, #e11d48 100%);
+    --color-link: #fbbf24;
+    --color-link-hover: #fde68a;
+    --color-accent: #fbbf24;
+    --color-accent-soft: rgba(245, 158, 11, 0.14);
+    --color-accent-border: rgba(251, 191, 36, 0.65);
+    --color-accent-text: #fde68a;
+    --focus-ring-color: rgba(251, 191, 36, 0.4);
+    --focus-border-color: #fbbf24;
+    --ai-1: #fbbf24;
+    --ai-mid: #fb923c;
+    --ai-2: #f472b6;
+  }
+
+  html[data-theme="light"][data-accent="amber"] {
+    --bg-hero-glow: radial-gradient(ellipse 68% 36% at 50% 0%, rgba(245, 158, 11, 0.1) 0%, transparent 72%);
+    --color-primary: #9a3412;
+    --color-primary-hover: #7c2d12;
+    --color-primary-active: #6c2710;
+    --color-on-primary: #ffffff;
+    --gradient-primary: linear-gradient(135deg, #9a3412 0%, #9f1239 100%);
+    --gradient-primary-hover: linear-gradient(135deg, #7c2d12 0%, #881337 100%);
+    --shadow-primary: 0 4px 14px rgba(154, 52, 18, 0.24);
+    --gradient-hero: linear-gradient(90deg, #b45309 0%, #c2410c 52%, #be123c 100%);
+    --gradient-brand: linear-gradient(135deg, #d97706 0%, #e11d48 100%);
+    --color-link: #9a3412;
+    --color-link-hover: #6c2710;
+    --color-accent: #9a3412;
+    --color-accent-soft: rgba(154, 52, 18, 0.1);
+    --color-accent-border: rgba(154, 52, 18, 0.45);
+    --color-accent-text: #7c2d12;
+    --focus-ring-color: rgba(154, 52, 18, 0.32);
+    --focus-border-color: #c2410c;
+    --ai-1: #d97706;
+    --ai-mid: #ea580c;
+    --ai-2: #e11d48;
   }
 }

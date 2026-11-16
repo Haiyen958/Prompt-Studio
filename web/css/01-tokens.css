@@ -1,81 +1,107 @@
 /* ==========================================================================
    1. TOKENS — Global Semantic Design Tokens (:root)
-   Default theme: Warm Graphite Dark (Prompt Studio v2 Canonical — design/tokens.css)
+   Default theme: Midnight Navy & Crimson–Rose–Coral (P014)
    ========================================================================== */
 
 @layer tokens {
   :root {
     color-scheme: dark;
 
-    /* --- Colors: Surfaces & Backgrounds --- */
-    --color-bg: #111214;
-    --color-surface: #1a1c1f;
-    --color-surface-subtle: #22252a;
-    --color-surface-elevated: #22252a;
-    --color-backdrop: rgba(8, 9, 10, 0.72);
+    /* --- Colors: Surfaces, Sidebar & Ambient Glow --- */
+    --color-bg: #070a18;
+    --color-sidebar-bg: #0a0e1f;
+    --color-surface: #0c1124;
+    --color-surface-subtle: #111730;
+    --color-surface-elevated: #121936;
+    --color-frame-bg: rgba(14, 19, 40, 0.88);
+    --bg-hero-glow: radial-gradient(ellipse 68% 38% at 50% 0%, rgba(214, 58, 86, 0.26) 0%, transparent 72%);
+    --color-backdrop: rgba(4, 6, 16, 0.76);
 
-    /* --- Colors: Brand, Primary & Secondary --- */
-    --color-primary: #7c9bff;
-    --color-primary-hover: #91abff;
-    --color-primary-active: #6586f5;
-    --color-on-primary: #0e1220;
+    /* --- Colors: Brand, Gradients, Links & Selection (Crimson–Rose–Coral) --- */
+    --color-primary: #c9304a;
+    --color-primary-hover: #d83a56;
+    --color-primary-active: #b3263e;
+    --color-on-primary: #ffffff;
+    --gradient-primary: linear-gradient(135deg, #c9304a 0%, #b13a7a 100%);
+    --gradient-primary-hover: linear-gradient(135deg, #d83a56 0%, #c14386 100%);
+    --shadow-primary: 0 6px 20px rgba(201, 48, 74, 0.38);
+    --gradient-hero: linear-gradient(90deg, #ee4b5e 0%, #e2549a 52%, #f0904f 100%);
+    --gradient-brand: linear-gradient(135deg, #e8475a 0%, #d9488c 100%);
 
-    --color-secondary: #22252a;
-    --color-secondary-hover: #2b2f36;
-    --color-secondary-active: #343942;
-    --color-on-secondary: #ececea;
+    --color-link: #f2717f;
+    --color-link-hover: #ff9aa5;
 
-    --color-accent: #7c9bff;
-    --color-accent-soft: #1f2a4a;
-    --color-accent-border: #33406b;
-    --color-accent-text: #b9c8ff;
+    --color-secondary: #0c1124;
+    --color-secondary-hover: #141c38;
+    --color-secondary-active: #1b2548;
+    --color-on-secondary: #f3f4f8;
 
-    /* --- Colors: Typography --- */
-    --color-text-primary: #ececea;
-    --color-text-body: #dddee0;
-    --color-text-secondary: #a8abb0;
-    --color-text-muted: #8b8f96;
+    --color-accent: #f2717f;
+    --color-accent-soft: rgba(232, 71, 90, 0.14);
+    --color-accent-border: rgba(242, 113, 127, 0.65);
+    --color-accent-text: #f7a1aa;
+
+    /* --- Colors: Typography (7 semantic roles, all WCAG AA/AAA verified) --- */
+    --color-text-primary: #f3f4f8;
+    --color-text-label: #e6e8f0;
+    --color-text-chip: #dadde8;
+    --color-text-body: #dadde8;
+    --color-text-nav: #c3c8d8;
+    --color-text-secondary: #a3a9bd;
+    --color-text-muted: #8d94ab;
+    --color-text-placeholder: #7e859c;
 
     /* --- Colors: Borders & Dividers --- */
-    --color-border: #2a2d31;
-    --color-border-strong: #3a3e44;
-    --color-divider: #24272b;
+    --color-sidebar-border: #161b30;
+    --color-divider: #1c2238;
+    --color-border: #1c2238;
+    --color-border-strong: #232a44;
+    --color-border-dashed: #343c5c;
 
-    /* --- Colors: Semantic Feedback (Success, Warning, Error, Info) --- */
-    --color-success: #8fe3a5;
-    --color-success-border: #1f4d2b;
-    --color-success-soft: #12261a;
+    /* --- Colors: Semantic Feedback (Distinct from Rose–Berry selection) --- */
+    --color-success: #3dd68c;
+    --color-success-border: #164e35;
+    --color-success-soft: #0b261c;
 
-    --color-warning: #f2c66d;
-    --color-warning-border: #5a4518;
-    --color-warning-soft: #2b2210;
+    --color-warning: #f5b95f;
+    --color-warning-border: #5c4014;
+    --color-warning-soft: #291e0b;
 
-    --color-error: #ff8a80;
-    --color-error-hover: #ffa199;
-    --color-error-border: #5a2a2a;
-    --color-error-soft: #2b1616;
-    --color-on-danger: #1f0d0d;
+    --color-error: #ff7a45;
+    --color-error-hover: #ff9166;
+    --color-error-border: #662714;
+    --color-error-soft: #2c140e;
+    --color-on-danger: #1f0b05;
 
-    --color-info: #7c9bff;
-    --color-info-soft: #1f2a4a;
+    --color-info: #93b4ff;
+    --color-info-soft: #132246;
 
-    /* --- Colors: Variable Token Highlight (Non-AI static token tint) --- */
-    --color-var-bg: #162c28;
-    --color-var-text: #7ee2cf;
-    --color-role-system: #b9c8ff;
-    --color-role-user: #8fe3a5;
+    /* --- Colors: Variable Token & API Role Highlights --- */
+    --color-var-bg: #0b2626;
+    --color-var-text: #5eead4;
+    --color-role-system: #93b4ff;
+    --color-role-user: #3dd68c;
 
     /* --- Colors: Interactive States & Focus --- */
-    --state-hover-bg: rgba(255, 255, 255, 0.045);
-    --state-active-bg: rgba(255, 255, 255, 0.085);
+    --state-hover-bg: rgba(243, 244, 248, 0.05);
+    --state-active-bg: rgba(243, 244, 248, 0.09);
     --state-disabled-opacity: 0.46;
-    --focus-ring-color: rgba(124, 155, 255, 0.45);
-    --focus-border-color: #4a5a8f;
+    --focus-ring-color: rgba(242, 113, 127, 0.42);
+    --focus-border-color: #f2717f;
     --focus-ring: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--focus-ring-color);
 
     /* --- Colors: Active AI Effects ONLY (Never use outside active AI states!) --- */
-    --ai-1: #b48cff;
-    --ai-2: #5eead4;
+    --ai-1: #ee4b5e;
+    --ai-mid: #e2549a;
+    --ai-2: #f0904f;
+
+    /* --- Swatch Preview Gradients (Settings & Showcase Accent Picker) --- */
+    --swatch-crimson: linear-gradient(135deg, #e8475a 0%, #d9488c 100%);
+    --swatch-indigo: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    --swatch-ocean: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%);
+    --swatch-emerald: linear-gradient(135deg, #10b981 0%, #14b8a6 100%);
+    --swatch-violet: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+    --swatch-amber: linear-gradient(135deg, #f59e0b 0%, #e11d48 100%);
 
     /* --- Spacing Scale (4px Base: --space-1 to --space-16) --- */
     --space-1: 0.25rem;  /* 4px */
@@ -128,7 +154,7 @@
 
     --container-sm: 40rem;    /* 640px — Settings */
     --container-md: 48.75rem; /* 780px — Studio workspace */
-    --container-lg: 70rem;    /* 1120px — Compare & Showcase */
+    --container-lg: 70rem;    /* 1120px — Showcase */
     --container-xl: 90rem;    /* 1440px */
 
     --sidebar-width: 16.5rem; /* 264px */
@@ -140,8 +166,8 @@
     --border-thin: 1px;
     --border-thick: 1.5px;
 
-    /* Flat enterprise UI: 0–4px corners. --radius-full is reserved for
-       assumption/starter chips, status dots and spinners. */
+    /* Flat 0–4px corners. --radius-full is reserved for assumption/starter chips,
+       status dots and spinners. */
     --radius-xs: 0.125rem;  /* 2px — Badge, inline code, var pill */
     --radius-sm: 0.25rem;   /* 4px */
     --radius-md: 0.25rem;   /* 4px — Control radius */
@@ -155,10 +181,10 @@
     --control-lg: 2.25rem;    /* 36px — Form inputs, primary actions */
     --control-touch: 2.75rem; /* 44px — Minimum touch target below 1024px */
 
-    --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.24);
-    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.32);
-    --shadow-md: 0 10px 28px rgba(0, 0, 0, 0.44);
-    --shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.52);
+    --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.32);
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.42);
+    --shadow-md: 0 12px 32px rgba(2, 4, 12, 0.56);
+    --shadow-lg: 0 24px 64px rgba(2, 4, 12, 0.68);
 
     --duration-fast: 120ms;
     --duration-normal: 220ms;

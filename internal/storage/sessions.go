@@ -228,12 +228,53 @@ func (r *Repo) GetSessionDetail(sessionID string, markOpened bool) (*SessionDeta
 	}, rows.Err()
 }
 
+// expandVietnameseDVariants generates 'd'/'đ' token variants (up to 2 positions → max 4
+// variants) because SQLite's `unicode61 remove_diacritics 2` strips vowel accents (`ị`→`i`)
+// but treats stroked `đ`/`Đ` as a distinct base letter from `d`/`D`. Expanding at query time
+// works immediately on existing databases without rewriting `sessions_fts`.
+func expandVietnameseDVariants(tok string) []string {
+	runes := []rune(strings.ToLower(tok))
+	var dPos []int
+	for i, r := range runes {
+		if r == 'd' || r == 'đ' {
+			dPos = append(dPos, i)
+			if len(dPos) == 2 {
+				break
+			}
+		}
+	}
+	if len(dPos) == 0 {
+		return []string{`"` + tok + `"*`}
+	}
+	variants := []string{string(runes)}
+	for _, pos := range dPos {
+		var next []string
+		for _, cur := range variants {
+			r := []rune(cur)
+			r[pos] = 'd'
+			next = append(next, string(r))
+			r[pos] = 'đ'
+			next = append(next, string(r))
+		}
+		variants = next
+	}
+	for i, v := range variants {
+		variants[i] = `"` + v + `"*`
+	}
+	return variants
+}
+
 func buildFTSQuery(raw string) string {
-	var tokens []string
+	var clauses []string
 	var cur strings.Builder
 	flush := func() {
 		if cur.Len() > 0 {
-			tokens = append(tokens, `"`+cur.String()+`"*`)
+			vars := expandVietnameseDVariants(cur.String())
+			if len(vars) == 1 {
+				clauses = append(clauses, vars[0])
+			} else {
+				clauses = append(clauses, "("+strings.Join(vars, " OR ")+")")
+			}
 			cur.Reset()
 		}
 	}
@@ -245,7 +286,7 @@ func buildFTSQuery(raw string) string {
 		}
 	}
 	flush()
-	return strings.Join(tokens, " AND ")
+	return strings.Join(clauses, " AND ")
 }
 
 func (r *Repo) ListSessions(f SessionFilter) ([]Session, error) {
@@ -484,7 +525,13 @@ func (r *Repo) SaveSessionToLibrary(id, collectionID, titleOverride, versionID s
 }
 
 func (r *Repo) UnsaveSession(id string) error {
-	res, err := r.db.Exec(`UPDATE sessions SET saved_at = NULL, collection_id = NULL, pinned_version_id = NULL WHERE id = ?`, id)
+	tx, err := r.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	res, err := tx.Exec(`UPDATE sessions SET saved_at = NULL, collection_id = NULL, pinned_version_id = NULL WHERE id = ?`, id)
 	if err != nil {
 		return err
 	}
@@ -492,7 +539,8 @@ func (r *Repo) UnsaveSession(id string) error {
 	if n == 0 {
 		return ErrNotFound
 	}
-	return nil
+	_ = syncSessionFTSTx(tx, id)
+	return tx.Commit()
 }
 
 func (r *Repo) DeleteSession(id string) error {

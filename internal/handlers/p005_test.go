@@ -1,13 +1,11 @@
 package handlers_test
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"strings"
 	"testing"
 
-	"prompt-studio/internal/ai"
 	"prompt-studio/internal/storage"
 )
 
@@ -129,84 +127,6 @@ func TestTargetIsStoredPerVersion(t *testing.T) {
 	}
 	if d.Session.Target != "api" {
 		t.Fatalf("session target should remember last used target, got %q", d.Session.Target)
-	}
-}
-
-func TestCompareRejectsMissingVariablesAndIncomplete(t *testing.T) {
-	const token = "compare-guard-token"
-	ts, svc, _ := setupTestEnv(t, token)
-	client := ts.Client()
-
-	sid, _ := generateSession(t, client, ts.URL, token)
-	d := getDetail(t, client, ts.URL, token, sid)
-	if len(ai.ExtractVariables(d.Versions[0].Content)) == 0 {
-		t.Skip("mock prompt has no variables")
-	}
-	resp := doJSONRequest(t, client, http.MethodPost, ts.URL+"/api/versions/"+d.Versions[0].ID+"/compare", token, map[string]any{})
-	var body map[string]any
-	_ = json.NewDecoder(resp.Body).Decode(&body)
-	resp.Body.Close()
-	if resp.StatusCode != http.StatusBadRequest || body["code"] != "missing_variables" {
-		t.Fatalf("expected 400 missing_variables, got %d %+v", resp.StatusCode, body)
-	}
-
-	incomplete, err := svc.Repo().CreateVersion(storage.PromptVersion{SessionID: sid, Source: "regenerate", Content: "Prompt dở", Incomplete: true})
-	if err != nil {
-		t.Fatalf("CreateVersion: %v", err)
-	}
-	resp = doJSONRequest(t, client, http.MethodPost, ts.URL+"/api/versions/"+incomplete.ID+"/compare", token, map[string]any{})
-	body = map[string]any{}
-	_ = json.NewDecoder(resp.Body).Decode(&body)
-	resp.Body.Close()
-	if resp.StatusCode != http.StatusBadRequest || body["code"] != "compare_incomplete" {
-		t.Fatalf("expected 400 compare_incomplete, got %d %+v", resp.StatusCode, body)
-	}
-}
-
-// failRawProvider fails only the "raw" side (the bare original request).
-type failRawProvider struct{ request string }
-
-func (p *failRawProvider) Ping(context.Context) error { return nil }
-func (p *failRawProvider) Stream(_ context.Context, r ai.Request, onDelta func(string)) (ai.Usage, error) {
-	if len(r.Messages) == 1 && strings.HasPrefix(r.Messages[0].Content, p.request) {
-		return ai.Usage{}, ai.ErrRateLimit
-	}
-	onDelta("Kết quả từ prompt.")
-	return ai.Usage{}, nil
-}
-
-func TestCompareReportsErrorPerSide(t *testing.T) {
-	const token = "compare-side-token"
-	ts, svc, _ := setupTestEnv(t, token)
-	client := ts.Client()
-
-	sid, vid := generateSession(t, client, ts.URL, token)
-	d := getDetail(t, client, ts.URL, token, sid)
-	vars := map[string]string{}
-	for _, n := range ai.ExtractVariables(d.Versions[0].Content) {
-		vars[n] = "giá trị thử"
-	}
-	useProvider(svc, &failRawProvider{request: d.Session.Request})
-
-	resp := doJSONRequest(t, client, http.MethodPost, ts.URL+"/api/versions/"+vid+"/compare", token, map[string]any{"variables": vars})
-	defer resp.Body.Close()
-	events := parseSSEStream(t, resp.Body)
-
-	sideErr, ok := findEvent(events, "side_error")
-	if !ok || sideErr.Data["side"] != "raw" || sideErr.Data["code"] != "rate_limit" {
-		t.Fatalf("expected side_error for raw, got %+v", events)
-	}
-	promptDone := false
-	for _, e := range events {
-		if e.Event == "side_done" && e.Data["side"] == "prompt" {
-			promptDone = true
-		}
-		if e.Event == "error" {
-			t.Fatalf("one failed side must not abort the whole compare: %+v", e.Data)
-		}
-	}
-	if _, ok := findEvent(events, "done"); !ok || !promptDone {
-		t.Fatalf("expected prompt side_done and done, got %+v", events)
 	}
 }
 

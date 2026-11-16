@@ -13,8 +13,8 @@ import (
 var templateFS embed.FS
 
 const (
-	GenerateTemplateVersion = "generate.v2"
-	RefineTemplateVersion   = "refine.v2"
+	GenerateTemplateVersion = "generate.v2.1"
+	RefineTemplateVersion   = "refine.v2.1"
 )
 
 type GenerateTemplateData struct {

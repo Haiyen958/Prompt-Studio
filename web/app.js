@@ -1,4 +1,4 @@
-// app.js — Prompt Studio v2 Frontend Controller (Studio, Compare, Unified Library)
+// app.js — Prompt Studio v2 Frontend Controller (Studio & Unified Library)
 // Zero inline styles; strictly toggles BEM & semantic state classes.
 
 (function () {
@@ -6,7 +6,7 @@
   const USER_SEP = "===USER===";
 
   const state = {
-    view: window.location.pathname === "/library" ? "library" : "studio", // "studio" | "compare" | "library"
+    view: window.location.pathname === "/library" ? "library" : "studio", // "studio" | "library"
     settings: null,
     aiConnected: null, // null = unknown (settings failed to load) → do not block
     starters: [],
@@ -21,6 +21,8 @@
     streamText: "",
     abortController: null,
     openAssumptionIndex: -1,
+    targetManualOverride: false,
+    suggestedTarget: "",
 
     // History & Undo delete
     historySessions: [],
@@ -35,16 +37,21 @@
     libraryHasMore: false,
     activeLibraryDetail: null,
     activeLibraryVersionId: "",
+    libRenaming: false,
     duplicateSessionId: "",
     pasteTitleTouched: false,
 
-    // Compare
-    compareAbort: null,
+    // Per-session variable values shared between Studio and Library (D-P010-1)
+    sessionVars: {},
+    studioVarsOpen: false,
+    libVarsOpen: false,
+
+    // Inline Version Diff (D-P010-2)
+    diffOpen: false,
+    diffBaseVersionId: "",
 
     // Last generate/refine call, re-run by the error banner's "Thử lại".
     retryAction: null,
-    compareRawText: "",
-    comparePromptText: "",
   };
 
   const el = (id) => document.getElementById(id);
@@ -76,6 +83,22 @@
     return out;
   }
 
+  function getSessionVarMap(sessionId) {
+    if (!sessionId) return {};
+    if (!state.sessionVars[sessionId]) {
+      state.sessionVars[sessionId] = {};
+    }
+    return state.sessionVars[sessionId];
+  }
+
+  function fillPromptVariables(text, varMap) {
+    const map = varMap || {};
+    return String(text || "").replace(/\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}/g, (full, name) => {
+      const val = map[name];
+      return typeof val === "string" && val.trim() ? val.trim() : full;
+    });
+  }
+
   function highlightInlineVars(escapedHtml) {
     return escapedHtml.replace(/\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}\}/g, (_, name) => {
       return `<span class="var-pill">{{${name}}}</span>`;
@@ -83,10 +106,27 @@
   }
 
   function formatInlineMarkdown(rawLine) {
-    let s = escapeHTML(rawLine);
+    const codeSpans = [];
+    let s = escapeHTML(rawLine).replace(/`([^`]+)`/g, (_, code) => {
+      const token = `\u0000CODE${codeSpans.length}\u0000`;
+      codeSpans.push(`<code>${highlightInlineVars(code)}</code>`);
+      return token;
+    });
     s = s.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
-    s = s.replace(/`([^`]+)`/g, "<code>$1</code>");
-    return highlightInlineVars(s);
+    s = s.replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, "$1<em>$2</em>");
+    s = highlightInlineVars(s);
+    return s.replace(/\u0000CODE(\d+)\u0000/g, (_, idx) => codeSpans[Number(idx)] || "");
+  }
+
+  function splitTableRow(rawRow) {
+    let trimmed = rawRow.trim();
+    if (trimmed.startsWith("|")) trimmed = trimmed.slice(1);
+    if (trimmed.endsWith("|")) trimmed = trimmed.slice(0, -1);
+    return trimmed.split("|").map((c) => c.trim());
+  }
+
+  function isTableSeparatorRow(rawRow) {
+    return /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(rawRow || "");
   }
 
   function renderMarkdownToHTML(markdown, withCaret) {
@@ -100,6 +140,7 @@
     let codeLines = [];
     let listTag = "";
     let listItems = [];
+    let quoteLines = [];
 
     const flushList = () => {
       if (listItems.length > 0) {
@@ -109,10 +150,19 @@
       }
     };
 
-    for (const line of lines) {
+    const flushQuote = () => {
+      if (quoteLines.length > 0) {
+        blocks.push(`<blockquote><p>${quoteLines.map(formatInlineMarkdown).join("\n")}</p></blockquote>`);
+        quoteLines = [];
+      }
+    };
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
       const trimmed = line.trim();
       if (trimmed.startsWith("```")) {
         flushList();
+        flushQuote();
         if (inCode) {
           blocks.push(`<pre>${highlightInlineVars(escapeHTML(codeLines.join("\n")))}</pre>`);
           codeLines = [];
@@ -128,12 +178,54 @@
       }
       if (!trimmed) {
         flushList();
+        flushQuote();
         continue;
       }
+      if (/^(?:---+|\*\*\*+|___+)$/.test(trimmed)) {
+        flushList();
+        flushQuote();
+        blocks.push("<hr>");
+        continue;
+      }
+      const quoteMatch = trimmed.match(/^>\s?(.*)$/);
+      if (quoteMatch) {
+        flushList();
+        quoteLines.push(quoteMatch[1]);
+        continue;
+      }
+      flushQuote();
+
+      // GFM pipe table: header row with "|" followed by separator row "| --- | --- |"
+      if (trimmed.includes("|") && i + 1 < lines.length && isTableSeparatorRow(lines[i + 1])) {
+        flushList();
+        const headers = splitTableRow(trimmed);
+        i += 2;
+        const bodyRows = [];
+        while (i < lines.length && lines[i].trim() && lines[i].includes("|")) {
+          bodyRows.push(splitTableRow(lines[i]));
+          i++;
+        }
+        i--; // step back so outer loop increments naturally
+        const ths = headers.map((h) => `<th>${formatInlineMarkdown(h)}</th>`).join("");
+        const trs = bodyRows
+          .map((row) => {
+            const cells = headers
+              .map((_, colIdx) => `<td>${formatInlineMarkdown(row[colIdx] || "")}</td>`)
+              .join("");
+            return `<tr>${cells}</tr>`;
+          })
+          .join("");
+        blocks.push(
+          `<div class="table-wrap"><table class="table table--compact"><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table></div>`
+        );
+        continue;
+      }
+
       const headingMatch = trimmed.match(/^(#{1,4})\s+(.+)$/);
       if (headingMatch) {
         flushList();
-        blocks.push(`<h3>${formatInlineMarkdown(headingMatch[2])}</h3>`);
+        const level = Math.min(4, Math.max(1, headingMatch[1].length));
+        blocks.push(`<h${level}>${formatInlineMarkdown(headingMatch[2])}</h${level}>`);
         continue;
       }
       const ulMatch = trimmed.match(/^[-*]\s+(.+)$/);
@@ -154,6 +246,7 @@
       blocks.push(`<p>${formatInlineMarkdown(line)}</p>`);
     }
     flushList();
+    flushQuote();
     if (inCode && codeLines.length > 0) {
       blocks.push(`<pre>${highlightInlineVars(escapeHTML(codeLines.join("\n")))}</pre>`);
     }
@@ -181,6 +274,111 @@
     };
   }
 
+  // Renders either two-part API blocks (system + user) or single Markdown into `container`.
+  function renderPromptContent(container, content, apiSplit, singleClass = "prompt-markdown") {
+    if (!container) return;
+    if (apiSplit && apiSplit.hasSplit) {
+      container.className = "api-blocks";
+      container.innerHTML = `
+        <div class="api-block">
+          <div class="api-block__header">
+            <span class="api-block__role api-block__role--system">system</span>
+            <span class="api-block__hint">Cố định, đặt một lần trong code</span>
+            <button type="button" class="btn btn--secondary btn--sm" data-copy-part="system">Copy</button>
+          </div>
+          <div class="api-block__body prompt-markdown">${renderMarkdownToHTML(apiSplit.system, false)}</div>
+        </div>
+        <div class="api-block">
+          <div class="api-block__header">
+            <span class="api-block__role api-block__role--user">user</span>
+            <span class="api-block__hint">Mẫu, điền biến ở mỗi lần gọi</span>
+            <button type="button" class="btn btn--secondary btn--sm" data-copy-part="user">Copy</button>
+          </div>
+          <div class="api-block__body api-block__body--mono">${highlightInlineVars(escapeHTML(apiSplit.user))}</div>
+        </div>
+      `;
+      container.querySelectorAll("[data-copy-part]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const part = btn.getAttribute("data-copy-part");
+          copyTextWithFeedback(btn, part === "system" ? apiSplit.system : apiSplit.user);
+        });
+      });
+    } else {
+      container.className = singleClass;
+      container.innerHTML = renderMarkdownToHTML(content, false);
+    }
+  }
+
+  // Computes line-by-line LCS diff between oldText and newText (with O(N*M) cap for huge pastes).
+  function computeLineDiff(oldText, newText) {
+    const a = String(oldText || "").split("\n");
+    const b = String(newText || "").split("\n");
+    const n = a.length;
+    const m = b.length;
+
+    if (n * m > 250000) {
+      let pre = 0;
+      while (pre < n && pre < m && a[pre] === b[pre]) pre++;
+      let suf = 0;
+      while (suf < n - pre && suf < m - pre && a[n - 1 - suf] === b[m - 1 - suf]) suf++;
+      const rows = [];
+      for (let i = 0; i < pre; i++) rows.push({ type: "ctx", text: a[i] });
+      let removed = 0;
+      let added = 0;
+      for (let i = pre; i < n - suf; i++) {
+        rows.push({ type: "del", text: a[i] });
+        removed++;
+      }
+      for (let j = pre; j < m - suf; j++) {
+        rows.push({ type: "add", text: b[j] });
+        added++;
+      }
+      for (let i = n - suf; i < n; i++) rows.push({ type: "ctx", text: a[i] });
+      return { rows, added, removed };
+    }
+
+    const dp = Array.from({ length: n + 1 }, () => new Int32Array(m + 1));
+    for (let i = n - 1; i >= 0; i--) {
+      for (let j = m - 1; j >= 0; j--) {
+        if (a[i] === b[j]) {
+          dp[i][j] = dp[i + 1][j + 1] + 1;
+        } else {
+          dp[i][j] = dp[i + 1][j] >= dp[i][j + 1] ? dp[i + 1][j] : dp[i][j + 1];
+        }
+      }
+    }
+
+    const rows = [];
+    let added = 0;
+    let removed = 0;
+    let i = 0;
+    let j = 0;
+    while (i < n && j < m) {
+      if (a[i] === b[j]) {
+        rows.push({ type: "ctx", text: a[i] });
+        i++;
+        j++;
+      } else if (dp[i + 1][j] >= dp[i][j + 1]) {
+        rows.push({ type: "del", text: a[i] });
+        removed++;
+        i++;
+      } else {
+        rows.push({ type: "add", text: b[j] });
+        added++;
+        j++;
+      }
+    }
+    while (i < n) {
+      rows.push({ type: "del", text: a[i++] });
+      removed++;
+    }
+    while (j < m) {
+      rows.push({ type: "add", text: b[j++] });
+      added++;
+    }
+    return { rows, added, removed };
+  }
+
   function formatRelativeTime(tsMs) {
     if (!tsMs) return "";
     const now = Date.now();
@@ -202,22 +400,43 @@
     return "Chat";
   }
 
-  function sourceLabel(ver) {
+  function sourceLabel(ver, versions = []) {
     if (!ver) return "Tạo mới";
+    let base = "Tạo từ yêu cầu";
     switch (ver.source) {
       case "regenerate":
-        return "Tạo lại";
+        base = "Tạo lại";
+        break;
       case "improve":
-        return ver.instruction ? `Tinh chỉnh: ${ver.instruction}` : "Tinh chỉnh";
+        if (ver.instruction) {
+          const short = ver.instruction.length > 42 ? ver.instruction.slice(0, 42) + "…" : ver.instruction;
+          base = `Tinh chỉnh: ${short}`;
+        } else {
+          base = "Tinh chỉnh";
+        }
+        break;
       case "assumption":
-        return ver.instruction ? ver.instruction : "Đổi giả định";
+        if (ver.instruction) {
+          const short = ver.instruction.length > 42 ? ver.instruction.slice(0, 42) + "…" : ver.instruction;
+          base = short;
+        } else {
+          base = "Đổi giả định";
+        }
+        break;
       case "manual":
-        return "Sửa tay";
+        base = "Sửa tay";
+        break;
       case "pasted":
-        return "Đã dán";
-      default:
-        return "Tạo từ yêu cầu";
+        base = "Đã dán";
+        break;
     }
+    if (ver.parentId && Array.isArray(versions) && versions.length > 0) {
+      const parent = versions.find((v) => v.id === ver.parentId);
+      if (parent) {
+        base += ` · từ v${parent.seq}`;
+      }
+    }
+    return base;
   }
 
   function deriveFirstLineTitle(content) {
@@ -274,7 +493,7 @@
     try {
       const s = await API.request("GET", "/api/settings");
       state.settings = s;
-      applyThemePreference(s.theme || "dark");
+      applyThemePreference(s.theme || "dark", s.accent || "crimson");
       if (s.defaultTarget && !state.session) {
         el("targetSelect").value = s.defaultTarget;
       }
@@ -349,9 +568,9 @@
 
   function applyStarter(starter) {
     state.selectedStarterId = starter.id;
+    state.targetManualOverride = false;
     const input = el("requestInput");
     input.value = starter.request;
-    updateRequestCounter();
 
     if (starter.preset && starter.preset.target) {
       el("targetSelect").value = starter.preset.target;
@@ -359,6 +578,7 @@
       badge.textContent = `Dùng cho: ${targetLabel(starter.preset.target)} (đặt sẵn theo mẫu)`;
       show(badge, true);
     }
+    updateRequestCounter();
     renderStarters();
 
     input.focus();
@@ -372,10 +592,6 @@
 
   // --- View Switching ---
   async function switchView(nextView, pushHistory = true) {
-    if (state.compareAbort && nextView !== "compare") {
-      state.compareAbort.abort();
-      state.compareAbort = null;
-    }
     state.view = nextView;
 
     const isLibrary = nextView === "library";
@@ -392,7 +608,6 @@
     show(el("sidebarLibraryScroll"), isLibrary);
 
     show(el("studioView"), nextView === "studio");
-    show(el("compareView"), nextView === "compare");
     show(el("libraryView"), nextView === "library");
 
     closeMobileSidebar();
@@ -604,9 +819,15 @@
     state.streamText = "";
     state.selectedStarterId = "";
     state.openAssumptionIndex = -1;
+    state.targetManualOverride = false;
+    state.suggestedTarget = "";
+    state.studioVarsOpen = false;
+    state.diffOpen = false;
+    state.diffBaseVersionId = "";
 
     el("requestInput").value = "";
     show(el("starterPresetBadge"), false);
+    show(el("targetHintBtn"), false);
     show(el("studioErrorBanner"), false);
     show(el("saveBarEditor"), false);
     updateRequestCounter();
@@ -624,10 +845,16 @@
       const idx = wanted ? state.versions.findIndex((v) => v.id === wanted) : -1;
       state.activeVersionIndex = idx >= 0 ? idx : state.versions.length - 1;
       state.openAssumptionIndex = -1;
+      state.targetManualOverride = false;
+      state.suggestedTarget = "";
+      state.studioVarsOpen = false;
+      state.diffOpen = false;
+      state.diffBaseVersionId = "";
 
       el("requestInput").value = state.session.request || "";
       syncTargetSelectToVersion();
       show(el("starterPresetBadge"), false);
+      show(el("targetHintBtn"), false);
       show(el("saveBarEditor"), false);
       updateRequestCounter();
 
@@ -693,6 +920,7 @@
 
     show(el("studioErrorBanner"), false);
     show(el("starterPresetBadge"), false);
+    show(el("targetHintBtn"), false);
     show(el("saveBarEditor"), false);
     // A new generation starts a new session: never keep showing the previous one's
     // versions, or a failed run would pair the new session with stale prompts.
@@ -700,6 +928,9 @@
     state.versions = [];
     state.activeVersionIndex = -1;
     state.openAssumptionIndex = -1;
+    state.studioVarsOpen = false;
+    state.diffOpen = false;
+    state.diffBaseVersionId = "";
     state.streaming = true;
     state.streamText = "";
     let receivedFirstDelta = false;
@@ -781,6 +1012,8 @@
 
     show(el("studioErrorBanner"), false);
     state.openAssumptionIndex = -1;
+    state.diffOpen = false;
+    state.diffBaseVersionId = "";
     state.streaming = true;
     state.streamText = "";
     let receivedFirstDelta = false;
@@ -887,11 +1120,128 @@
   function renderLiveStreamPrompt() {
     show(el("resultCard"), true);
     show(el("manualEditContainer"), false);
+    show(el("diffBar"), false);
+    show(el("studioVarsDrawer"), false);
     show(el("promptDisplayContainer"), true);
     show(el("assumptionsSection"), false);
     const box = el("promptDisplayContainer");
     box.className = "prompt-markdown";
     box.innerHTML = renderMarkdownToHTML(state.streamText, true);
+  }
+
+  // Populates variable inputs inside `container` bound to `sessionVars[sessionId]`.
+  function renderBoundVarInputs(container, vars, sessionId, onInputExtra) {
+    if (!container) return;
+    container.innerHTML = "";
+    const varMap = getSessionVarMap(sessionId);
+    for (const name of vars) {
+      const field = document.createElement("label");
+      field.className = "field";
+      const lbl = document.createElement("span");
+      lbl.className = "field__label text-mono";
+      lbl.textContent = `{{${name}}}`;
+      const inp = document.createElement("input");
+      inp.type = "text";
+      inp.className = "input input--sm";
+      inp.setAttribute("data-var-name", name);
+      inp.placeholder = `Nhập giá trị cho ${name}…`;
+      inp.value = varMap[name] || "";
+      inp.addEventListener("input", () => {
+        varMap[name] = inp.value;
+        if (typeof onInputExtra === "function") onInputExtra();
+      });
+      field.appendChild(lbl);
+      field.appendChild(inp);
+      container.appendChild(field);
+    }
+  }
+
+  function firstEmptyVarInput(container) {
+    if (!container) return null;
+    return [...container.querySelectorAll("[data-var-name]")].find((inp) => !inp.value.trim()) || null;
+  }
+
+  function copyFilledFromContainer(btn, content, sessionId, inputsContainer, asApiJson = false) {
+    const empty = firstEmptyVarInput(inputsContainer);
+    if (empty) {
+      const name = empty.getAttribute("data-var-name") || "biến";
+      empty.focus();
+      UI.toast(`Hãy điền giá trị cho {{${name}}} trước khi copy bản đã điền.`, { variant: "error" });
+      return;
+    }
+    const filled = fillPromptVariables(content, getSessionVarMap(sessionId));
+    if (asApiJson) {
+      const parts = splitAPIPrompt(filled);
+      const msgs = parts.hasSplit
+        ? [
+            { role: "system", content: parts.system },
+            { role: "user", content: parts.user },
+          ]
+        : [{ role: "user", content: filled }];
+      copyTextWithFeedback(btn, JSON.stringify(msgs, null, 2), "Đã copy JSON");
+      return;
+    }
+    copyTextWithFeedback(btn, filled, "Đã copy bản điền");
+  }
+
+  function resolveDiffBaseVersion(ver) {
+    if (!ver || state.versions.length < 2) return null;
+    const others = state.versions.filter((v) => v.id !== ver.id);
+    if (!others.length) return null;
+    if (state.diffBaseVersionId) {
+      const chosen = others.find((v) => v.id === state.diffBaseVersionId);
+      if (chosen) return chosen;
+    }
+    if (ver.parentId) {
+      const parent = others.find((v) => v.id === ver.parentId);
+      if (parent) return parent;
+    }
+    const prevIdx = state.activeVersionIndex > 0 ? state.activeVersionIndex - 1 : 0;
+    return state.versions[prevIdx] && state.versions[prevIdx].id !== ver.id
+      ? state.versions[prevIdx]
+      : others[0];
+  }
+
+  function renderStudioDiff(ver, displayBox) {
+    const baseVer = resolveDiffBaseVersion(ver);
+    if (!baseVer) {
+      state.diffOpen = false;
+      show(el("diffBar"), false);
+      return false;
+    }
+    state.diffBaseVersionId = baseVer.id;
+    const sel = el("diffBaseSelect");
+    sel.innerHTML = "";
+    for (const cand of state.versions) {
+      if (cand.id === ver.id) continue;
+      const opt = document.createElement("option");
+      opt.value = cand.id;
+      const roleNote =
+        ver.parentId === cand.id ? " (bản cha)" : cand.seq === 1 ? " (bản gốc)" : "";
+      opt.textContent = `v${cand.seq}${roleNote} — ${sourceLabel(cand)}`;
+      sel.appendChild(opt);
+    }
+    sel.value = baseVer.id;
+
+    const diff = computeLineDiff(baseVer.content, ver.content);
+    el("diffStatsLabel").textContent =
+      diff.added === 0 && diff.removed === 0
+        ? "Không có dòng thay đổi"
+        : `+${diff.added} / −${diff.removed} dòng`;
+
+    displayBox.className = "diff-view";
+    if (diff.added === 0 && diff.removed === 0) {
+      displayBox.innerHTML = `<div class="diff-line diff-line--ctx"><span class="diff-line__sign">=</span><span>Nội dung hai phiên bản giống hệt nhau.</span></div>`;
+      return true;
+    }
+    displayBox.innerHTML = diff.rows
+      .map((r) => {
+        const cls = r.type === "add" ? "diff-line--add" : r.type === "del" ? "diff-line--del" : "diff-line--ctx";
+        const sign = r.type === "add" ? "+" : r.type === "del" ? "−" : " ";
+        return `<div class="diff-line ${cls}"><span class="diff-line__sign">${sign}</span><span>${highlightInlineVars(escapeHTML(r.text))}</span></div>`;
+      })
+      .join("");
+    return true;
   }
 
   function renderStudioState() {
@@ -911,19 +1261,22 @@
 
     if (!hasResult) return;
 
-    // Stepper & badges
+    // Stepper & badges (with parent lineage)
     el("versionIndicator").textContent = `v${ver.seq} / ${state.versions.length}`;
     el("prevVersionBtn").disabled = state.activeVersionIndex <= 0;
     el("nextVersionBtn").disabled = state.activeVersionIndex >= state.versions.length - 1;
-    el("versionSourceBadge").textContent = sourceLabel(ver);
+    const srcBadge = el("versionSourceBadge");
+    srcBadge.textContent = sourceLabel(ver, state.versions);
+    srcBadge.title = ver.instruction || "";
     show(el("incompleteBadge"), Boolean(ver.incomplete));
 
-    // Compare button hidden on pasted prompts (PLAN.md §5)
-    const canCompare = state.session && state.session.origin !== "pasted" && Boolean(state.session.request);
-    show(el("openCompareBtn"), canCompare);
-    const compareBtn = el("openCompareBtn");
-    compareBtn.disabled = Boolean(ver.incomplete);
-    compareBtn.title = ver.incomplete ? "Bản chưa xong — bấm Tạo lại trước khi so sánh" : "";
+    // Version Diff toggle (D-P010-2)
+    const canDiff = state.versions.length > 1;
+    if (!canDiff) state.diffOpen = false;
+    const diffBtn = el("toggleDiffBtn");
+    show(diffBtn, canDiff);
+    diffBtn.setAttribute("aria-pressed", state.diffOpen ? "true" : "false");
+    show(el("diffBar"), canDiff && state.diffOpen);
 
     // Save button & Save Bar. Saving pins the version being viewed; viewing another
     // version offers to move the saved copy to it.
@@ -943,53 +1296,41 @@
       populateCollectionSelect(el("saveCollectionSelect"), state.session.collectionId, false);
     }
 
-    // Prompt content display (Two-part API vs Single Markdown)
+    // Prompt content display (Diff vs Two-part API vs Single Markdown)
     show(el("manualEditContainer"), false);
     const displayBox = el("promptDisplayContainer");
     show(displayBox, true);
 
     const target = ver.target || (state.session && state.session.target) || el("targetSelect").value;
     const apiSplit = target === "api" ? splitAPIPrompt(ver.content) : { hasSplit: false };
+    const vars = extractVariables(ver.content);
+
+    // Inline Variable Fill drawer (D-P010-1)
+    if (vars.length === 0) state.studioVarsOpen = false;
+    const varsBtn = el("toggleStudioVarsBtn");
+    show(varsBtn, vars.length > 0);
+    varsBtn.textContent = vars.length > 0 ? `Điền biến (${vars.length})` : "Điền biến";
+    varsBtn.setAttribute("aria-expanded", state.studioVarsOpen ? "true" : "false");
+    varsBtn.setAttribute("aria-pressed", state.studioVarsOpen ? "true" : "false");
+    show(el("studioVarsDrawer"), vars.length > 0 && state.studioVarsOpen);
+    show(el("copyFilledApiJsonBtn"), apiSplit.hasSplit);
+    if (vars.length > 0 && state.studioVarsOpen && state.session) {
+      renderBoundVarInputs(el("studioVarsInputs"), vars, state.session.id);
+    }
 
     show(el("copyApiJsonBtn"), apiSplit.hasSplit);
     el("copyPromptBtn").textContent = apiSplit.hasSplit ? "Copy tất cả" : "Copy";
 
-    if (apiSplit.hasSplit) {
-      displayBox.className = "api-blocks";
-      displayBox.innerHTML = `
-        <div class="api-block">
-          <div class="api-block__header">
-            <span class="api-block__role api-block__role--system">system</span>
-            <span class="api-block__hint">Cố định, đặt một lần trong code</span>
-            <button type="button" class="btn btn--secondary btn--sm" data-copy-part="system">Copy</button>
-          </div>
-          <div class="api-block__body prompt-markdown">${renderMarkdownToHTML(apiSplit.system, false)}</div>
-        </div>
-        <div class="api-block">
-          <div class="api-block__header">
-            <span class="api-block__role api-block__role--user">user</span>
-            <span class="api-block__hint">Mẫu, điền biến ở mỗi lần gọi</span>
-            <button type="button" class="btn btn--secondary btn--sm" data-copy-part="user">Copy</button>
-          </div>
-          <div class="api-block__body api-block__body--mono">${highlightInlineVars(escapeHTML(apiSplit.user))}</div>
-        </div>
-      `;
-      displayBox.querySelectorAll("[data-copy-part]").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          const part = btn.getAttribute("data-copy-part");
-          copyTextWithFeedback(btn, part === "system" ? apiSplit.system : apiSplit.user);
-        });
-      });
+    if (state.diffOpen && renderStudioDiff(ver, displayBox)) {
+      // Diff rendered into displayBox
     } else {
-      displayBox.className = "prompt-markdown";
-      displayBox.innerHTML = renderMarkdownToHTML(ver.content, false);
+      renderPromptContent(displayBox, ver.content, apiSplit, "prompt-markdown");
     }
 
     // Editable Assumptions
     renderAssumptions(ver.assumptions || []);
 
     // Metadata footer
-    const vars = extractVariables(ver.content);
     const metaParts = [];
     if (ver.model) metaParts.push(ver.model);
     if (ver.inputTokens || ver.outputTokens) {
@@ -1010,22 +1351,44 @@
   function renderAssumptions(assumptions) {
     const sec = el("assumptionsSection");
     const list = el("assumptionsList");
+    const titleMain = el("assumptionsTitleMain");
+    const titleHint = el("assumptionsTitleHint");
     list.innerHTML = "";
     if (!assumptions || !assumptions.length) {
+      sec.classList.remove("assumptions-section--needs-review");
       show(sec, false);
       return;
     }
     show(sec, true);
 
+    const highCount = assumptions.filter((a) => a && a.impact === "high").length;
+    sec.classList.toggle("assumptions-section--needs-review", highCount > 0);
+    if (titleMain && titleHint) {
+      if (highCount > 0) {
+        titleMain.textContent = `Cần xác nhận ${highCount} điểm quan trọng`;
+        titleMain.classList.add("assumptions-section__title--warning");
+        titleHint.textContent = "· AI đã chọn mặc định an toàn, bấm để chốt hoặc dùng ngay";
+      } else {
+        titleMain.textContent = "AI đã giả định";
+        titleMain.classList.remove("assumptions-section__title--warning");
+        titleHint.textContent = "· bấm để đổi, prompt sẽ được viết lại";
+      }
+    }
+
     assumptions.forEach((item, idx) => {
+      const isHigh = item.impact === "high";
       const wrap = document.createElement("div");
       wrap.className = "assumption-wrap";
 
       const chip = document.createElement("button");
       chip.type = "button";
-      chip.className = "assumption-chip";
+      chip.className = "assumption-chip" + (isHigh ? " assumption-chip--high" : "");
       chip.setAttribute("aria-expanded", state.openAssumptionIndex === idx ? "true" : "false");
-      chip.innerHTML = `<span class="assumption-chip__label">${escapeHTML(item.label)}:</span> <span>${escapeHTML(item.value)}</span>${UI.icons.chevronDown}`;
+      if (isHigh) {
+        chip.innerHTML = `${UI.icons.alertCircle}<span class="badge badge--warning">Cần rõ</span><span class="assumption-chip__label">${escapeHTML(item.label)}:</span> <span>${escapeHTML(item.value)}</span>${UI.icons.chevronDown}`;
+      } else {
+        chip.innerHTML = `<span class="assumption-chip__label">${escapeHTML(item.label)}:</span> <span>${escapeHTML(item.value)}</span>${UI.icons.chevronDown}`;
+      }
       chip.addEventListener("click", (e) => {
         e.stopPropagation();
         state.openAssumptionIndex = state.openAssumptionIndex === idx ? -1 : idx;
@@ -1035,13 +1398,25 @@
 
       if (state.openAssumptionIndex === idx) {
         const pop = document.createElement("div");
-        pop.className = "assumption-popover";
+        pop.className = "assumption-popover" + (isHigh ? " assumption-popover--high" : "");
         pop.addEventListener("click", (e) => e.stopPropagation());
 
-        const title = document.createElement("div");
-        title.className = "text-xs text-secondary font-semibold";
-        title.textContent = `Đổi giả định “${item.label}”`;
-        pop.appendChild(title);
+        if (isHigh || item.question) {
+          const qNode = document.createElement("div");
+          qNode.className = "assumption-popover__question";
+          qNode.textContent = item.question || `Xác nhận “${item.label}”`;
+          pop.appendChild(qNode);
+
+          const curNode = document.createElement("div");
+          curNode.className = "assumption-popover__current";
+          curNode.textContent = `Đang áp dụng: ${item.value}`;
+          pop.appendChild(curNode);
+        } else {
+          const title = document.createElement("div");
+          title.className = "text-xs text-secondary font-semibold";
+          title.textContent = `Đổi giả định “${item.label}”`;
+          pop.appendChild(title);
+        }
 
         for (const alt of item.alternatives || []) {
           const optBtn = document.createElement("button");
@@ -1167,152 +1542,6 @@
       renderStudioState();
     } catch (err) {
       showStudioError(err.message);
-    }
-  }
-
-  // --- Side-by-Side Compare ---
-  async function openCompareView() {
-    const ver = activeVersion();
-    if (!state.session || !ver || state.session.origin === "pasted") return;
-
-    await switchView("compare", false);
-
-    el("compareRawInputPreview").textContent = state.session.request || "";
-    el("comparePromptTag").textContent = `Đầu vào B · Prompt v${ver.seq}`;
-    el("comparePromptInputPreview").textContent = ver.content.slice(0, 180) + (ver.content.length > 180 ? "…" : "");
-
-    const vars = extractVariables(ver.content);
-    const varsCard = el("compareVarsCard");
-    const inputsContainer = el("compareVarsInputs");
-    inputsContainer.innerHTML = "";
-
-    if (vars.length > 0) {
-      show(varsCard, true);
-      for (const name of vars) {
-        const field = document.createElement("label");
-        field.className = "field";
-        field.innerHTML = `
-          <span class="field__label text-mono">{{${escapeHTML(name)}}}</span>
-          <input type="text" class="input input--sm" data-var-name="${escapeHTML(name)}" placeholder="Nhập giá trị thử cho ${escapeHTML(name)}…">
-        `;
-        inputsContainer.appendChild(field);
-      }
-    } else {
-      show(varsCard, false);
-    }
-
-    // With variables, wait for test data instead of spending two calls on {{placeholders}}.
-    if (vars.length > 0) {
-      state.compareRawText = "";
-      state.comparePromptText = "";
-      el("compareRawOutput").innerHTML = "";
-      el("comparePromptOutput").innerHTML = "";
-      el("compareRawFooter").textContent = "Chờ Dữ liệu thử";
-      el("comparePromptFooter").textContent = "Chờ Dữ liệu thử";
-      const first = firstEmptyCompareVariable();
-      if (first) first.focus();
-      return;
-    }
-    await runCompareStream();
-  }
-
-  function collectCompareVariables() {
-    const out = {};
-    el("compareVarsInputs")
-      .querySelectorAll("[data-var-name]")
-      .forEach((inp) => {
-        const k = inp.getAttribute("data-var-name");
-        if (k && inp.value.trim()) {
-          out[k] = inp.value.trim();
-        }
-      });
-    return out;
-  }
-
-  // Returns the first empty test-data input, if any (compare needs every variable).
-  function firstEmptyCompareVariable() {
-    return [...el("compareVarsInputs").querySelectorAll("[data-var-name]")].find((inp) => !inp.value.trim()) || null;
-  }
-
-  async function runCompareStream() {
-    const ver = activeVersion();
-    if (!ver) return;
-    const emptyVar = firstEmptyCompareVariable();
-    if (emptyVar) {
-      const msg = "Điền Dữ liệu thử cho mọi biến rồi bấm Chạy so sánh.";
-      el("compareRawFooter").textContent = msg;
-      el("comparePromptFooter").textContent = msg;
-      emptyVar.focus();
-      return;
-    }
-    if (state.compareAbort) {
-      state.compareAbort.abort();
-    }
-
-    state.compareRawText = "";
-    state.comparePromptText = "";
-    el("compareRawOutput").innerHTML = `<p><span class="ai-caret" aria-hidden="true"></span></p>`;
-    el("comparePromptOutput").innerHTML = `<p><span class="ai-caret" aria-hidden="true"></span></p>`;
-    el("compareRawFooter").textContent = "Đang chạy…";
-    el("comparePromptFooter").textContent = "Đang chạy…";
-
-    const ctrl = new AbortController();
-    state.compareAbort = ctrl;
-
-    try {
-      await API.streamSSE(
-        `/api/versions/${ver.id}/compare`,
-        { variables: collectCompareVariables() },
-        {
-          delta(payload) {
-            if (payload.side === "raw") {
-              state.compareRawText += payload.delta || "";
-              el("compareRawOutput").innerHTML = renderMarkdownToHTML(state.compareRawText, true);
-            } else if (payload.side === "prompt") {
-              state.comparePromptText += payload.delta || "";
-              el("comparePromptOutput").innerHTML = renderMarkdownToHTML(state.comparePromptText, true);
-            }
-          },
-          side_done(payload) {
-            const sec = ((payload.latencyMs || 0) / 1000).toFixed(1).replace(".", ",");
-            const summary = `${payload.words || 0} từ · ${sec} giây`;
-            if (payload.side === "raw") {
-              el("compareRawOutput").innerHTML = renderMarkdownToHTML(state.compareRawText, false);
-              el("compareRawFooter").textContent = summary;
-            } else if (payload.side === "prompt") {
-              el("comparePromptOutput").innerHTML = renderMarkdownToHTML(state.comparePromptText, false);
-              el("comparePromptFooter").textContent = summary;
-            }
-          },
-          side_error(payload) {
-            const msg = payload.message || "Lỗi khi chạy so sánh";
-            if (payload.side === "raw") {
-              el("compareRawOutput").innerHTML = renderMarkdownToHTML(state.compareRawText, false);
-              el("compareRawFooter").textContent = msg;
-            } else if (payload.side === "prompt") {
-              el("comparePromptOutput").innerHTML = renderMarkdownToHTML(state.comparePromptText, false);
-              el("comparePromptFooter").textContent = msg;
-            }
-          },
-          done(payload) {
-            if (payload.model) {
-              el("compareSubMeta").textContent = `2 lần gọi · ${payload.model} · kết quả không được lưu`;
-            }
-          },
-          error(payload) {
-            el("compareRawFooter").textContent = payload.message || "Lỗi khi chạy so sánh";
-            el("comparePromptFooter").textContent = payload.message || "Lỗi khi chạy so sánh";
-          },
-        },
-        ctrl.signal
-      );
-    } catch (err) {
-      if (err.name !== "AbortError") {
-        el("compareRawFooter").textContent = err.message;
-        el("comparePromptFooter").textContent = err.message;
-      }
-    } finally {
-      state.compareAbort = null;
     }
   }
 
@@ -1451,12 +1680,15 @@
     }
 
     for (const item of state.librarySessions) {
-      const card = document.createElement("button");
-      card.type = "button";
       const isSelected = Boolean(state.activeLibraryDetail && state.activeLibraryDetail.session.id === item.id);
+      const card = document.createElement("div");
       card.className = "library-item" + (isSelected ? " is-active" : "");
-      if (isSelected) card.setAttribute("aria-current", "true");
-      card.addEventListener("click", () => selectLibrarySession(item.id));
+
+      const mainBtn = document.createElement("button");
+      mainBtn.type = "button";
+      mainBtn.className = "library-item__main";
+      if (isSelected) mainBtn.setAttribute("aria-current", "true");
+      mainBtn.addEventListener("click", () => selectLibrarySession(item.id));
 
       const originTag =
         item.origin === "pasted"
@@ -1467,7 +1699,7 @@
           ? `<span class="library-item__vars">${item.variablesCount} biến</span>`
           : "";
 
-      card.innerHTML = `
+      mainBtn.innerHTML = `
         <span class="library-item__title">${escapeHTML(item.title)}</span>
         <span class="library-item__preview">${escapeHTML(item.preview || "")}</span>
         <span class="library-item__meta">
@@ -1476,6 +1708,25 @@
           <span>${escapeHTML(formatRelativeTime(item.openedAt || item.savedAt))}</span>
         </span>
       `;
+      card.appendChild(mainBtn);
+
+      const actions = document.createElement("span");
+      actions.className = "library-item__actions";
+      const renameBtn = document.createElement("button");
+      renameBtn.type = "button";
+      renameBtn.className = "btn btn--ghost btn--icon";
+      renameBtn.setAttribute("aria-label", `Đổi tên “${item.title || "Prompt"}”`);
+      renameBtn.setAttribute("data-tooltip", "Đổi tên");
+      renameBtn.innerHTML = UI.icons.edit;
+      renameBtn.addEventListener("click", async () => {
+        if (!state.activeLibraryDetail || state.activeLibraryDetail.session.id !== item.id) {
+          await selectLibrarySession(item.id);
+        }
+        openLibraryInlineRename();
+      });
+      actions.appendChild(renameBtn);
+      card.appendChild(actions);
+
       listEl.appendChild(card);
     }
 
@@ -1486,8 +1737,13 @@
 
   async function selectLibrarySession(sessionId) {
     try {
+      const prevId = state.activeLibraryDetail ? state.activeLibraryDetail.session.id : "";
       const detail = await API.request("GET", `/api/sessions/${sessionId}`);
       state.activeLibraryDetail = detail;
+      if (prevId !== sessionId) {
+        state.libVarsOpen = false;
+        state.libRenaming = false;
+      }
       const pinned = detail.session.pinnedVersionId;
       const versions = detail.versions || [];
       const foundPinned = pinned && versions.find((v) => v.id === pinned);
@@ -1503,6 +1759,16 @@
     }
   }
 
+  function activeLibraryVersion() {
+    if (!state.activeLibraryDetail) return null;
+    const versions = state.activeLibraryDetail.versions || [];
+    return (
+      versions.find((v) => v.id === state.activeLibraryVersionId) ||
+      versions[versions.length - 1] ||
+      null
+    );
+  }
+
   function renderLibraryDetail() {
     const detail = state.activeLibraryDetail;
     show(el("libraryEmptyDetail"), !detail);
@@ -1510,13 +1776,15 @@
     if (!detail) return;
 
     const sess = detail.session;
-    const versions = [...(detail.versions || [])].reverse(); // newest first
-    const currentVer =
-      versions.find((v) => v.id === state.activeLibraryVersionId) || versions[0] || null;
+    const allAsc = detail.versions || [];
+    const versions = [...allAsc].reverse(); // newest first
+    const currentVer = activeLibraryVersion();
 
     const originText = sess.origin === "pasted" ? "Đã dán" : "Từ Studio";
     el("libDetailCrumb").textContent = `${sess.collectionName || "Chưa phân loại"} · ${originText}`;
     el("libDetailTitle").textContent = sess.title;
+    show(el("libTitleRow"), !state.libRenaming);
+    show(el("libInlineRenameForm"), state.libRenaming);
 
     const descEl = el("libDetailDesc");
     descEl.textContent = sess.description || "";
@@ -1524,10 +1792,32 @@
 
     populateCollectionSelect(el("libMoveCollectionSelect"), sess.collectionId, false);
 
-    el("libDetailContent").innerHTML = currentVer
-      ? renderMarkdownToHTML(currentVer.content, false)
-      : "";
+    const target = (currentVer && currentVer.target) || sess.target || "chat";
+    const apiSplit =
+      currentVer && target === "api" ? splitAPIPrompt(currentVer.content) : { hasSplit: false };
+    show(el("libCopyApiJsonBtn"), apiSplit.hasSplit);
+    el("libCopyBtn").textContent = apiSplit.hasSplit ? "Copy tất cả" : "Copy";
 
+    const vars = currentVer ? extractVariables(currentVer.content) : [];
+    if (vars.length === 0) state.libVarsOpen = false;
+    const libVarsBtn = el("toggleLibVarsBtn");
+    show(libVarsBtn, vars.length > 0);
+    libVarsBtn.textContent = vars.length > 0 ? `Điền biến (${vars.length})` : "Điền biến";
+    libVarsBtn.setAttribute("aria-expanded", state.libVarsOpen ? "true" : "false");
+    libVarsBtn.setAttribute("aria-pressed", state.libVarsOpen ? "true" : "false");
+    show(el("libVarsDrawer"), vars.length > 0 && state.libVarsOpen);
+    show(el("copyFilledLibApiJsonBtn"), apiSplit.hasSplit);
+    if (vars.length > 0 && state.libVarsOpen) {
+      renderBoundVarInputs(el("libVarsInputs"), vars, sess.id);
+    }
+
+    const contentBox = el("libDetailContent");
+    if (currentVer) {
+      renderPromptContent(contentBox, currentVer.content, apiSplit, "api-block__body prompt-markdown");
+    } else {
+      contentBox.className = "";
+      contentBox.innerHTML = "";
+    }
 
     const vList = el("libVersionsList");
     vList.innerHTML = "";
@@ -1544,7 +1834,7 @@
           : "";
       btn.innerHTML = `
         <span class="version-history-item__seq">v${v.seq}</span>
-        <span class="toolbar__spacer">${escapeHTML(sourceLabel(v))}${pinNote}</span>
+        <span class="toolbar__spacer">${escapeHTML(sourceLabel(v, allAsc))}${pinNote}</span>
         <span class="text-xs text-muted">${escapeHTML(formatRelativeTime(v.createdAt))}</span>
       `;
       btn.addEventListener("click", () => {
@@ -1556,6 +1846,59 @@
     }
 
     el("libDetailTimestamps").textContent = `Lưu ${formatRelativeTime(sess.savedAt)} · Mở lần cuối: ${formatRelativeTime(sess.openedAt)}`;
+  }
+
+  function openLibraryInlineRename() {
+    if (!state.activeLibraryDetail) return;
+    state.libRenaming = true;
+    renderLibraryDetail();
+    const inp = el("libInlineRenameInput");
+    if (inp) {
+      inp.value = state.activeLibraryDetail.session.title || "";
+      inp.focus();
+      inp.select();
+    }
+  }
+
+  function cancelLibraryInlineRename(restoreFocus = true) {
+    if (!state.libRenaming) return;
+    state.libRenaming = false;
+    renderLibraryDetail();
+    if (restoreFocus && el("libInlineRenameBtn")) {
+      el("libInlineRenameBtn").focus();
+    }
+  }
+
+  async function submitLibraryInlineRename() {
+    if (!state.activeLibraryDetail) return;
+    const sessId = state.activeLibraryDetail.session.id;
+    const inp = el("libInlineRenameInput");
+    const next = inp.value.trim();
+    if (!next) {
+      UI.toast("Tên prompt không được để trống.", { variant: "error" });
+      inp.focus();
+      return;
+    }
+    if (next === state.activeLibraryDetail.session.title) {
+      cancelLibraryInlineRename(true);
+      return;
+    }
+    const saveBtn = el("libInlineRenameSaveBtn");
+    if (saveBtn) saveBtn.disabled = true;
+    try {
+      const updated = await API.request("PATCH", `/api/sessions/${sessId}`, { title: next });
+      state.libRenaming = false;
+      if (state.session && state.session.id === sessId && updated && updated.title) {
+        state.session.title = updated.title;
+      }
+      await Promise.all([loadLibraryList(), loadHistorySessions(), selectLibrarySession(sessId)]);
+      UI.toast("Đã đổi tên prompt.");
+    } catch (err) {
+      UI.toast(`Không đổi được tên: ${err.message}`, { variant: "error" });
+      inp.focus();
+    } finally {
+      if (saveBtn) saveBtn.disabled = false;
+    }
   }
 
   // --- Paste Modal ---
@@ -1633,11 +1976,71 @@
   }
 
   // --- Helpers & Event Bindings ---
+  // Detects strong coding-agent or system-prompt-API cues so Studio can offer a 1-click
+  // target switch without opening a blocking clarification modal (D-P011-3).
+  function detectSuggestedTarget(text, currentTarget) {
+    const trimmed = String(text || "").trim();
+    if (trimmed.length < 16) return "";
+    const lower = trimmed.toLowerCase();
+
+    // Unicode-safe word boundary helpers (\b in JS only treats ASCII [A-Za-z0-9_] as word chars).
+    const hasPhrase = (re) => re.test(lower);
+
+    // Coding-agent cues take priority over generic "API" mentions (e.g. "để agent sửa lỗi API thanh toán").
+    const explicitAgent =
+      hasPhrase(/(?:^|[^\p{L}\p{N}_])(coding agent|ide agent|claude code|cursor|codex|antigravity)(?=$|[^\p{L}\p{N}_])/iu) ||
+      hasPhrase(/(?:^|[^\p{L}\p{N}_])(?:để|cho|yêu cầu|nhờ)\s+agent(?=$|[^\p{L}\p{N}_])/iu) ||
+      hasPhrase(/(?:^|[^\p{L}\p{N}_])agent\s+(?:lập trình|review|kiểm tra|chẩn đoán|sửa|viết|refactor|tối ưu|khảo sát|thêm|vá)(?=$|[^\p{L}\p{N}_])/iu) ||
+      hasPhrase(/panic:\s*runtime error/iu);
+    const repoWorkflow =
+      hasPhrase(/(?:^|[^\p{L}\p{N}_])(pull request|regression test|unit test|codebase|repository|workspace|git diff|goroutine)(?=$|[^\p{L}\p{N}_])/iu) &&
+      hasPhrase(/(?:^|[^\p{L}\p{N}_])(review|sửa|chẩn đoán|refactor|fix|vá|kiểm thử|tối ưu|thêm)(?=$|[^\p{L}\p{N}_])/iu);
+    if (explicitAgent || repoWorkflow) {
+      return currentTarget !== "agent" ? "agent" : "";
+    }
+
+    // System-prompt API cues (building an LLM messages endpoint, not debugging a business API).
+    const explicitApi =
+      hasPhrase(/(?:^|[^\p{L}\p{N}_])system\s+prompt\s+(?:cho\s+)?api(?=$|[^\p{L}\p{N}_])/iu) ||
+      hasPhrase(/(?:^|[^\p{L}\p{N}_])(?:tạo|viết|thiết kế)\s+(?:system\s+prompt|prompt)\s+cho\s+api(?=$|[^\p{L}\p{N}_])/iu) ||
+      hasPhrase(/(?:^|[^\p{L}\p{N}_])api\s+(?:trích xuất|phân loại|tóm tắt|chuyển\s+câu\s+hỏi|chuyển\s+đổi)(?=$|[^\p{L}\p{N}_])/iu) ||
+      hasPhrase(/(?:^|[^\p{L}\p{N}_])(?:openai|anthropic)\s+messages\s+api(?=$|[^\p{L}\p{N}_])/iu) ||
+      lower.includes("===user===");
+    if (explicitApi) {
+      return currentTarget !== "api" ? "api" : "";
+    }
+
+    return "";
+  }
+
+  function updateTargetHint() {
+    const btn = el("targetHintBtn");
+    if (!btn) return;
+    const text = el("requestInput").value;
+    if (!text.trim()) {
+      state.targetManualOverride = false;
+    }
+    if (state.streaming || state.targetManualOverride || (state.session && state.session.request === text.trim())) {
+      state.suggestedTarget = "";
+      show(btn, false);
+      return;
+    }
+    const suggested = detectSuggestedTarget(text, el("targetSelect").value);
+    state.suggestedTarget = suggested;
+    if (!suggested) {
+      show(btn, false);
+      return;
+    }
+    btn.textContent = `Gợi ý: Đổi sang ${targetLabel(suggested)}`;
+    show(btn, true);
+  }
+
   function updateRequestCounter() {
     const len = el("requestInput").value.length;
     const counter = el("requestCharCounter");
     counter.textContent = `${len.toLocaleString("vi-VN")} / 8.000`;
     counter.classList.toggle("is-over", len > 8000);
+    updateTargetHint();
   }
 
   // Error codes that the user fixes in Settings, and transient ones worth a retry (PLAN.md §3).
@@ -1685,15 +2088,22 @@
       }
     });
 
-    // Global Esc shortcut to stop streaming or close modal
+    // Global Esc shortcut to stop streaming, close modal, or dismiss assumption popover
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") {
         if (state.abortController) {
           state.abortController.abort();
-        } else if (state.compareAbort) {
-          state.compareAbort.abort();
         } else if (el("pasteModal").classList.contains("is-open")) {
           closePasteModal();
+        } else if (state.libRenaming) {
+          cancelLibraryInlineRename(true);
+        } else if (state.openAssumptionIndex !== -1) {
+          const prevIdx = state.openAssumptionIndex;
+          state.openAssumptionIndex = -1;
+          const ver = activeVersion();
+          if (ver) renderAssumptions(ver.assumptions || []);
+          const chips = el("assumptionsList").querySelectorAll(".assumption-chip");
+          if (chips[prevIdx]) chips[prevIdx].focus();
         }
       }
     });
@@ -1728,8 +2138,23 @@
       if (typeof state.retryAction === "function" && !state.streaming) state.retryAction();
     });
 
-    // Request input & Generate
+    // Request input, Target Hint & Generate
     el("requestInput").addEventListener("input", updateRequestCounter);
+    el("targetSelect").addEventListener("change", () => {
+      state.targetManualOverride = true;
+      show(el("starterPresetBadge"), false);
+      updateTargetHint();
+    });
+    el("targetHintBtn").addEventListener("click", () => {
+      if (!state.suggestedTarget) return;
+      const next = state.suggestedTarget;
+      el("targetSelect").value = next;
+      state.targetManualOverride = true;
+      show(el("starterPresetBadge"), false);
+      updateTargetHint();
+      UI.announce(`Đã chuyển nơi dùng sang ${targetLabel(next)}`);
+      el("generateBtn").focus();
+    });
     el("requestInput").addEventListener("keydown", (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
         e.preventDefault();
@@ -1745,6 +2170,7 @@
     el("prevVersionBtn").addEventListener("click", () => {
       if (state.activeVersionIndex > 0) {
         state.activeVersionIndex--;
+        state.diffBaseVersionId = "";
         syncTargetSelectToVersion();
         renderStudioState();
       }
@@ -1752,6 +2178,7 @@
     el("nextVersionBtn").addEventListener("click", () => {
       if (state.activeVersionIndex < state.versions.length - 1) {
         state.activeVersionIndex++;
+        state.diffBaseVersionId = "";
         syncTargetSelectToVersion();
         renderStudioState();
       }
@@ -1759,8 +2186,58 @@
     UI.bindMenu(el("resultMoreBtn"), el("resultMoreMenu"));
     UI.bindMenu(el("libMoreBtn"), el("libMoreMenu"));
 
+    // Version Diff events (D-P010-2)
+    el("toggleDiffBtn").addEventListener("click", () => {
+      state.diffOpen = !state.diffOpen;
+      if (state.diffOpen) state.diffBaseVersionId = "";
+      renderStudioState();
+    });
+    el("diffBaseSelect").addEventListener("change", (e) => {
+      state.diffBaseVersionId = e.target.value;
+      renderStudioState();
+    });
+    el("closeDiffBtn").addEventListener("click", () => {
+      state.diffOpen = false;
+      renderStudioState();
+    });
+
+    // Studio Inline Variable Fill events (D-P010-1)
+    el("toggleStudioVarsBtn").addEventListener("click", () => {
+      state.studioVarsOpen = !state.studioVarsOpen;
+      renderStudioState();
+      if (state.studioVarsOpen) {
+        const first = el("studioVarsInputs").querySelector("input");
+        if (first) first.focus();
+      }
+    });
+    el("clearStudioVarsBtn").addEventListener("click", () => {
+      if (state.session) state.sessionVars[state.session.id] = {};
+      renderStudioState();
+    });
+    el("copyFilledStudioBtn").addEventListener("click", () => {
+      const ver = activeVersion();
+      if (!ver || !state.session) return;
+      copyFilledFromContainer(
+        el("copyFilledStudioBtn"),
+        ver.content,
+        state.session.id,
+        el("studioVarsInputs"),
+        false
+      );
+    });
+    el("copyFilledApiJsonBtn").addEventListener("click", () => {
+      const ver = activeVersion();
+      if (!ver || !state.session) return;
+      copyFilledFromContainer(
+        el("copyFilledApiJsonBtn"),
+        ver.content,
+        state.session.id,
+        el("studioVarsInputs"),
+        true
+      );
+    });
+
     el("regenerateBtn").addEventListener("click", () => startRefine("", "regenerate"));
-    el("openCompareBtn").addEventListener("click", openCompareView);
     el("saveSessionBtn").addEventListener("click", handleOneClickSave);
     el("toggleSaveEditBtn").addEventListener("click", () => {
       const editor = el("saveBarEditor");
@@ -1772,6 +2249,9 @@
     el("manualEditBtn").addEventListener("click", () => {
       const ver = activeVersion();
       if (!ver) return;
+      state.diffOpen = false;
+      show(el("diffBar"), false);
+      el("toggleDiffBtn").setAttribute("aria-pressed", "false");
       el("manualEditTextarea").value = ver.content;
       show(el("promptDisplayContainer"), false);
       show(el("manualEditContainer"), true);
@@ -1833,23 +2313,6 @@
       const instr = el("refineInput").value.trim();
       if (!instr) return;
       startRefine(instr, "improve");
-    });
-
-    // Compare controls
-    el("backFromCompareBtn").addEventListener("click", () => switchView("studio", false));
-    el("rerunCompareBtn").addEventListener("click", runCompareStream);
-    el("runCompareWithVarsBtn").addEventListener("click", runCompareStream);
-    el("compareRefineBtn").addEventListener("click", () => {
-      switchView("studio", false);
-      el("refineInput").focus();
-    });
-    el("compareSaveBtn").addEventListener("click", async () => {
-      await handleOneClickSave();
-      el("compareSaveBtn").textContent = "Đã lưu";
-    });
-    el("compareCopyBtn").addEventListener("click", () => {
-      const ver = activeVersion();
-      if (ver) copyTextWithFeedback(el("compareCopyBtn"), ver.content);
     });
 
     // Collections & Library controls
@@ -1920,12 +2383,61 @@
     el("librarySortSelect").addEventListener("change", loadLibraryList);
 
     el("libCopyBtn").addEventListener("click", () => {
-      if (!state.activeLibraryDetail) return;
-      const versions = state.activeLibraryDetail.versions || [];
-      const v =
-        versions.find((x) => x.id === state.activeLibraryVersionId) ||
-        versions[versions.length - 1];
+      const v = activeLibraryVersion();
       if (v) copyTextWithFeedback(el("libCopyBtn"), v.content);
+    });
+
+    el("libCopyApiJsonBtn").addEventListener("click", () => {
+      const v = activeLibraryVersion();
+      if (!v) return;
+      const parts = splitAPIPrompt(v.content);
+      const msgs = parts.hasSplit
+        ? [
+            { role: "system", content: parts.system },
+            { role: "user", content: parts.user },
+          ]
+        : [{ role: "user", content: v.content }];
+      copyTextWithFeedback(el("libCopyApiJsonBtn"), JSON.stringify(msgs, null, 2));
+    });
+
+    el("toggleLibVarsBtn").addEventListener("click", () => {
+      state.libVarsOpen = !state.libVarsOpen;
+      renderLibraryDetail();
+      if (state.libVarsOpen) {
+        const first = el("libVarsInputs").querySelector("input");
+        if (first) first.focus();
+      }
+    });
+
+    el("clearLibVarsBtn").addEventListener("click", () => {
+      if (state.activeLibraryDetail) {
+        state.sessionVars[state.activeLibraryDetail.session.id] = {};
+      }
+      renderLibraryDetail();
+    });
+
+    el("copyFilledLibBtn").addEventListener("click", () => {
+      const v = activeLibraryVersion();
+      if (!v || !state.activeLibraryDetail) return;
+      copyFilledFromContainer(
+        el("copyFilledLibBtn"),
+        v.content,
+        state.activeLibraryDetail.session.id,
+        el("libVarsInputs"),
+        false
+      );
+    });
+
+    el("copyFilledLibApiJsonBtn").addEventListener("click", () => {
+      const v = activeLibraryVersion();
+      if (!v || !state.activeLibraryDetail) return;
+      copyFilledFromContainer(
+        el("copyFilledLibApiJsonBtn"),
+        v.content,
+        state.activeLibraryDetail.session.id,
+        el("libVarsInputs"),
+        true
+      );
     });
 
     el("libOpenInStudioBtn").addEventListener("click", () => {
@@ -1948,21 +2460,12 @@
       }
     });
 
-    el("libRenamePromptBtn").addEventListener("click", async () => {
-      if (!state.activeLibraryDetail) return;
-      const sessId = state.activeLibraryDetail.session.id;
-      const next = await UI.prompt({
-        title: "Sửa tên prompt",
-        value: state.activeLibraryDetail.session.title,
-        confirmLabel: "Lưu tên",
-      });
-      if (!next) return;
-      try {
-        await API.request("PATCH", `/api/sessions/${sessId}`, { title: next });
-        await Promise.all([loadLibraryList(), loadHistorySessions(), selectLibrarySession(sessId)]);
-      } catch (err) {
-        UI.toast(`Không sửa được tên: ${err.message}`, { variant: "error" });
-      }
+    el("libInlineRenameBtn").addEventListener("click", openLibraryInlineRename);
+    el("libRenamePromptBtn").addEventListener("click", openLibraryInlineRename);
+    el("libInlineRenameCancelBtn").addEventListener("click", () => cancelLibraryInlineRename(true));
+    el("libInlineRenameForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+      submitLibraryInlineRename();
     });
 
     el("libUnsaveBtn").addEventListener("click", async () => {

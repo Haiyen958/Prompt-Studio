@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="vi" data-theme="dark">
+<html lang="vi" data-theme="dark" data-accent="crimson">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -19,6 +19,32 @@
         <span class="badge badge--primary">Vanilla CSS · @layer · Zero Framework</span>
       </div>
       <div class="toolbar__group">
+        <div class="accent-picker accent-picker--inline" id="showcaseAccentPicker" role="group" aria-label="Xem thử màu chủ đạo">
+          <button type="button" class="accent-swatch accent-swatch--compact is-selected" data-accent="crimson" aria-pressed="true">
+            <span class="accent-swatch__dot accent-swatch__dot--crimson" aria-hidden="true"></span>
+            <span class="accent-swatch__name">Đỏ</span>
+          </button>
+          <button type="button" class="accent-swatch accent-swatch--compact" data-accent="indigo" aria-pressed="false">
+            <span class="accent-swatch__dot accent-swatch__dot--indigo" aria-hidden="true"></span>
+            <span class="accent-swatch__name">Indigo</span>
+          </button>
+          <button type="button" class="accent-swatch accent-swatch--compact" data-accent="ocean" aria-pressed="false">
+            <span class="accent-swatch__dot accent-swatch__dot--ocean" aria-hidden="true"></span>
+            <span class="accent-swatch__name">Ocean</span>
+          </button>
+          <button type="button" class="accent-swatch accent-swatch--compact" data-accent="emerald" aria-pressed="false">
+            <span class="accent-swatch__dot accent-swatch__dot--emerald" aria-hidden="true"></span>
+            <span class="accent-swatch__name">Ngọc</span>
+          </button>
+          <button type="button" class="accent-swatch accent-swatch--compact" data-accent="violet" aria-pressed="false">
+            <span class="accent-swatch__dot accent-swatch__dot--violet" aria-hidden="true"></span>
+            <span class="accent-swatch__name">Tím</span>
+          </button>
+          <button type="button" class="accent-swatch accent-swatch--compact" data-accent="amber" aria-pressed="false">
+            <span class="accent-swatch__dot accent-swatch__dot--amber" aria-hidden="true"></span>
+            <span class="accent-swatch__name">Hổ phách</span>
+          </button>
+        </div>
         <button id="themeToggleBtn" class="btn btn--secondary btn--sm" type="button">
           Đổi giao diện Sáng
         </button>
@@ -33,7 +59,7 @@
       <section class="stack stack--sm">
         <h1>Showcase Design Tokens &amp; Component v2</h1>
         <p>
-          Tài liệu trực quan cho hệ thống CSS Custom Properties (Warm Graphite &amp; Warm Paper), Lưới 12 cột Mobile-First, 10 nhóm BEM Component tái sử dụng và 4 trạng thái khung AI v2.
+          Tài liệu trực quan cho hệ thống CSS Custom Properties (Midnight Navy &amp; 6 bảng màu chủ đạo Tối/Sáng chuẩn WCAG AA), Lưới 12 cột Mobile-First, 10 nhóm BEM Component tái sử dụng và 4 trạng thái khung AI v2.
         </p>
         <div class="cluster">
           <a href="#tokens" class="chip">1. Design Tokens</a>
@@ -344,6 +370,13 @@
           </div>
 
           <div class="cluster">
+            <button type="button" class="assumption-chip assumption-chip--high demo-chip">
+              <svg class="assumption-chip__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>
+              <span class="badge badge--warning">Cần rõ</span>
+              <span class="assumption-chip__label">Mức độ can thiệp:</span>
+              <strong>Phân tích trước, chờ duyệt</strong>
+              <span aria-hidden="true">▾</span>
+            </button>
             <button type="button" class="assumption-chip demo-chip">
               <span class="assumption-chip__label">Định dạng đầu ra:</span>
               <strong>JSON Schema chặt</strong>
@@ -479,6 +512,7 @@
     </div>
   </div>
 
+  <script src="/api.js"></script>
   <script src="/showcase.js"></script>
 </body>
 </html>

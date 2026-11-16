@@ -1,4 +1,5 @@
 ## Nơi dùng mục tiêu: Agent lập trình (`agent`)
-- Thiết kế cho coding agent có quyền đọc/sửa mã nguồn và chạy lệnh kiểm thử (Claude Code, Cursor, Codex, Antigravity).
-- Nêu rõ: Bối cảnh kỹ thuật, Quy trình khảo sát trước khi sửa, Danh sách công việc cụ thể, Ràng buộc an toàn (những gì KHÔNG được phá vỡ), và Bước xác minh bằng test/build trước khi kết thúc.
-- Dùng biến `{{pham_vi_module}}` hoặc `{{mo_ta_loi}}` cho các thông tin thay đổi theo từng tác vụ.
+- Thiết kế cho coding agent có quyền đọc/sửa mã nguồn và chạy lệnh kiểm thử trực tiếp trong repository (Claude Code, Cursor, Codex, Antigravity).
+- **Tự điền ngữ cảnh đã nêu:** Đưa thẳng tên module/API, triệu chứng lỗi, điều kiện tái hiện và yêu cầu kiểm thử từ `<user_request>` vào prompt; **không** thay thế thông tin đã biết bằng placeholder `{{pham_vi_module}}` hay `{{mo_ta_loi}}` (chỉ dùng biến `{{...}}` khi người dùng chủ động yêu cầu viết template tái sử dụng).
+- **Giao agent tự khảo sát repo:** Không hỏi và không đặt biến cho các chi tiết kỹ thuật agent tự đọc được từ mã nguồn (ngôn ngữ lập trình, framework, ORM, cấu trúc thư mục, lệnh chạy test). Yêu cầu agent đọc code/schema/test thực tế trước khi kết luận và sửa.
+- Nêu rõ: Bối cảnh & Triệu chứng, Quy trình khảo sát nguyên nhân gốc rễ, Kế hoạch sửa đổi & kiểm thử (unit/regression test), Ràng buộc an toàn (tương thích ngược, an toàn dữ liệu), và Bước xác minh bằng lệnh build/test thực tế kèm mã thoát.

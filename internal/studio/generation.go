@@ -94,6 +94,7 @@ func (s *Service) runPromptStream(ctx context.Context, job promptStream, emit fu
 	if a := toStorageAssumptions(split.Meta.Assumptions); len(a) > 0 {
 		v.Assumptions = a
 	}
+	v.Assumptions = resolveConfirmedAssumption(v.Assumptions, v.Source, v.Instruction)
 	saved, err := s.repo.CreateVersion(v)
 	if err != nil {
 		return res, err

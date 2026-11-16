@@ -16,13 +16,18 @@ import (
 )
 
 type EvalCase struct {
-	ID             string            `yaml:"id" json:"id"`
-	Category       string            `yaml:"category" json:"category"`
-	Target         string            `yaml:"target" json:"target"`
-	Request        string            `yaml:"request" json:"request"`
-	ExpectAPISplit bool              `yaml:"expect_api_split" json:"expectApiSplit,omitempty"`
-	ForbidExact    string            `yaml:"forbid_exact" json:"forbidExact,omitempty"`
-	SampleVars     map[string]string `yaml:"sample_vars" json:"sampleVars,omitempty"`
+	ID                 string            `yaml:"id" json:"id"`
+	Category           string            `yaml:"category" json:"category"`
+	Target             string            `yaml:"target" json:"target"`
+	Request            string            `yaml:"request" json:"request"`
+	ExpectAPISplit     bool              `yaml:"expect_api_split" json:"expectApiSplit,omitempty"`
+	ExpectZeroVars     bool              `yaml:"expect_zero_vars" json:"expectZeroVars,omitempty"`
+	ExpectMinVars      int               `yaml:"expect_min_vars" json:"expectMinVars,omitempty"`
+	ExpectHighImpact   bool              `yaml:"expect_high_impact" json:"expectHighImpact,omitempty"`
+	MustContainAny     []string          `yaml:"must_contain_any" json:"mustContainAny,omitempty"`
+	ForbidPlaceholders []string          `yaml:"forbid_placeholders" json:"forbidPlaceholders,omitempty"`
+	ForbidExact        string            `yaml:"forbid_exact" json:"forbidExact,omitempty"`
+	SampleVars         map[string]string `yaml:"sample_vars" json:"sampleVars,omitempty"`
 }
 
 type CaseResult struct {
@@ -32,6 +37,7 @@ type CaseResult struct {
 	Passed           bool     `json:"passed"`
 	MetaValid        bool     `json:"metaValid"`
 	AssumptionsCount int      `json:"assumptionsCount"`
+	HighImpactCount  int      `json:"highImpactCount"`
 	VariablesCount   int      `json:"variablesCount"`
 	WordCount        int      `json:"wordCount"`
 	BlindWinner      string   `json:"blindWinner,omitempty"` // "prompt" | "raw" | "tie"
@@ -154,6 +160,7 @@ func main() {
 		} else if !splitRes.MetaValid {
 			failures = append(failures, "invalid JSON in ===META=== block")
 		}
+		highImpactCount := 0
 		if splitRes.MetaValid {
 			if strings.TrimSpace(splitRes.Meta.Intent) == "" {
 				failures = append(failures, "empty meta.intent")
@@ -161,10 +168,25 @@ func main() {
 			if len(splitRes.Meta.Assumptions) > 4 {
 				failures = append(failures, fmt.Sprintf("assumptions count %d > 4", len(splitRes.Meta.Assumptions)))
 			}
+			seenNormal := false
 			for _, a := range splitRes.Meta.Assumptions {
 				if a.Label == "" || a.Value == "" {
 					failures = append(failures, "assumption missing label or value")
 				}
+				if a.Impact == "high" {
+					highImpactCount++
+					if seenNormal {
+						failures = append(failures, "high-impact assumption sorted after normal assumption")
+					}
+					if strings.TrimSpace(a.Question) == "" {
+						failures = append(failures, fmt.Sprintf("high-impact assumption %q missing question", a.Label))
+					}
+				} else {
+					seenNormal = true
+				}
+			}
+			if highImpactCount > 3 {
+				failures = append(failures, fmt.Sprintf("high-impact assumptions %d > 3", highImpactCount))
 			}
 		}
 
@@ -183,6 +205,39 @@ func main() {
 		}
 
 		vars := ai.ExtractVariables(splitRes.Prompt)
+		if tc.ExpectZeroVars && len(vars) > 0 {
+			failures = append(failures, fmt.Sprintf("expected auto-filled prompt with 0 variables, got %v", vars))
+		}
+		if tc.ExpectMinVars > 0 && len(vars) < tc.ExpectMinVars {
+			failures = append(failures, fmt.Sprintf("expected >= %d runtime variables, got %d (%v)", tc.ExpectMinVars, len(vars), vars))
+		}
+		if tc.ExpectHighImpact && highImpactCount == 0 {
+			failures = append(failures, "expected at least 1 high-impact clarification assumption")
+		}
+		if len(tc.MustContainAny) > 0 {
+			lowerPrompt := strings.ToLower(splitRes.Prompt)
+			matched := false
+			for _, sub := range tc.MustContainAny {
+				if strings.Contains(lowerPrompt, strings.ToLower(sub)) {
+					matched = true
+					break
+				}
+			}
+			if !matched {
+				failures = append(failures, fmt.Sprintf("prompt missing auto-filled context (want any of %v)", tc.MustContainAny))
+			}
+		}
+		if len(tc.ForbidPlaceholders) > 0 {
+			forbidSet := map[string]bool{}
+			for _, f := range tc.ForbidPlaceholders {
+				forbidSet[strings.ToLower(f)] = true
+			}
+			for _, vName := range vars {
+				if forbidSet[strings.ToLower(vName)] {
+					failures = append(failures, fmt.Sprintf("forbidden placeholder {{%s}} present", vName))
+				}
+			}
+		}
 
 		// Optional blind side-by-side comparison judge
 		blindWinner := "-"
@@ -215,6 +270,7 @@ func main() {
 			Passed:           passed,
 			MetaValid:        splitRes.MetaValid,
 			AssumptionsCount: len(splitRes.Meta.Assumptions),
+			HighImpactCount:  highImpactCount,
 			VariablesCount:   len(vars),
 			WordCount:        words,
 			BlindWinner:      blindWinner,

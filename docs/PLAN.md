@@ -8,7 +8,7 @@ Bản HTML tĩnh của các màn hình nằm trong `design/`.
 ## 1. Sản phẩm
 
 Prompt Studio biến một yêu cầu viết bằng ngôn ngữ tự nhiên thành prompt có cấu trúc.
-Luồng: nhập → nhận prompt kèm giả định sửa được → so sánh với yêu cầu gốc → tinh chỉnh → sao chép hoặc lưu.
+Luồng: nhập → nhận prompt kèm giả định sửa được → tinh chỉnh → sao chép hoặc lưu.
 
 Nguyên tắc:
 
@@ -43,31 +43,30 @@ Ba trang: Studio, Thư viện, Settings.
 ### Studio (`design/studio.html`, `design/studio-empty.html`)
 
 1. Ô yêu cầu: textarea tự giãn, `Ctrl/Cmd + Enter` để tạo.
-2. Một hàng điều khiển: dropdown "Dùng cho" (giai đoạn 7) và nút Tạo prompt; đang chạy thì nút thành Dừng.
-3. Khối kết quả: prompt stream từng phần. Thanh công cụ: `‹ v2/2 ›`, Tạo lại, So sánh, Lưu, Sửa, Copy.
-4. Giả định: hàng chip dưới prompt ("Nền tảng: Web app desktop"). Bấm chip mở 2–3 phương án khác và ô gõ tự do; chọn xong tạo phiên bản mới.
+2. Một hàng điều khiển: dropdown "Dùng cho" (kèm chip gợi ý đổi nhanh sang `agent` / `api` khi nội dung yêu cầu lệch đích đang chọn) và nút Tạo prompt; đang chạy thì nút thành Dừng.
+3. Khối kết quả: prompt stream từng phần, nhãn phả hệ (`· từ vN`). Thanh công cụ: `‹ v2/2 ›`, Xem thay đổi (diff theo dòng với bản cha hoặc bản chọn), Lưu, Điền biến (khung trượt ngay trên thẻ khi có `{{biến}}` để copy bản đã điền mà không đổi bản gốc), Copy, và menu `⋯` (Tạo lại, Sửa tay, Tải .md, Copy JSON).
+4. Giả định & Làm rõ thích ứng inline: hàng chip dưới prompt ("Nền tảng: Web app desktop"). Các điểm thiếu thông tin rủi ro cao / ảnh hưởng quyết định (`impact: "high"`, tối đa 3 mục) được chọn mặc định an toàn trong `v1` và tô nổi ở đầu hàng kèm câu hỏi làm rõ (`question`) trong popover; bấm chip chọn 1 trong 2–3 phương án hoặc gõ tự do để tạo phiên bản mới (không dùng modal chặn trước).
 5. Ô tinh chỉnh kèm chip gợi ý (Ngắn hơn, Chi tiết hơn, Thêm ví dụ, Đầu ra dạng JSON). Ô trống thì nút gửi mờ.
 
 Thao tác một cú bấm:
 
 - Lưu: lưu ngay vào collection dùng gần nhất, tiêu đề lấy từ `intent`, và **ghim phiên bản đang xem** làm bản lưu. Hiện thông báo "Đã lưu vào … · bản vN · Đổi". Không có hộp thoại. Khi đang xem một phiên bản khác bản đã lưu, nút đổi thành "Cập nhật bản lưu (vN)"; thử nghiệm sau khi lưu không bao giờ âm thầm thay nội dung trong Thư viện.
-- So sánh (`design/compare.html`): chạy yêu cầu gốc và prompt hiện tại song song trên cùng model, hiện hai câu trả lời cạnh nhau. Kết quả không lưu. Prompt có biến thì hiện ô "Dữ liệu thử" và chỉ chạy khi mọi biến đã có giá trị. Không so sánh bản `incomplete`. Một bên lỗi thì báo lỗi ở cột đó, bên kia vẫn chạy.
 - Dừng: phần đã viết được lưu thành phiên bản `incomplete`.
 
 ### Thư viện (`design/library.html`, `design/add-prompt.html`)
 
 - Cột trái: collection kèm số lượng, luôn có "Chưa phân loại".
-- Cột giữa: các phiên đã lưu, tìm kiếm, sắp xếp (mở gần đây, mới lưu, tên).
-- Cột phải: prompt của bản đã lưu (phiên bản được ghim khi Lưu); Copy, Mở trong Studio, Chuyển collection, Bỏ lưu; danh sách phiên bản (xem được, đánh dấu "bản đã lưu"). Không có nút ghim riêng.
+- Cột giữa: các phiên đã lưu (có nút đổi tên nhanh trên từng mục), tìm kiếm, sắp xếp (mở gần đây, mới lưu, tên).
+- Cột phải: tiêu đề kèm nút Đổi tên tại chỗ (inline, không mở modal); prompt của bản đã lưu (phiên bản được ghim khi Lưu, tự tách 2 khối `system`/`user` khi `target = api`); Copy, Điền biến (nếu có `{{biến}}`), Mở trong Studio, Chuyển collection, Bỏ lưu; danh sách phiên bản (xem được, hiện phả hệ `· từ vN` và đánh dấu "bản đã lưu"). Không có nút ghim riêng.
 - "Mở trong Studio" mở chính phiên đó, tại phiên bản đang xem trong Thư viện (mặc định là bản đã lưu).
 - Lịch sử và Thư viện tải theo trang (50 mục), có nút "Tải thêm".
 - Thêm prompt: dán nội dung, tiêu đề lấy từ dòng đầu, chọn collection. Trùng thì trỏ tới bản đã có.
 
 ### Settings (`design/settings.html`)
 
-- Provider (OpenAI, Anthropic, OpenAI-compatible), Base URL, Model ID, API key, Test Connection.
+- Provider (OpenAI, Anthropic, OpenAI-compatible — kèm chip điền nhanh Base URL cho Ollama, LM Studio, OpenRouter, Gemini, Groq), Base URL, Model ID, API key, Test Connection.
 - Model chọn trong Settings từ danh sách thật của provider (nút "Tải danh sách model", `POST /api/settings/models`), vẫn gõ tay được. Đổi provider thì phải chọn lại model; Anthropic không có model mặc định (model bị khai tử theo thời gian). Vẫn không chọn model theo phiên (§1).
-- Ngôn ngữ prompt: Theo yêu cầu (mặc định) / Tiếng Việt / English. Giao diện: Tối / Sáng / Theo hệ thống.
+- Ngôn ngữ prompt: Theo yêu cầu (mặc định) / Tiếng Việt / English. Giao diện: Tối / Sáng / Theo hệ thống. Màu chủ đạo (`accent`): 6 bảng màu tuyển chọn (`crimson` mặc định, `indigo`, `ocean`, `emerald`, `violet`, `amber`) lưu trong `settings.accent` và sao lưu cùng JSON Export/Import.
 - Nâng cao: temperature, max output tokens, timeout. Xuất và nhập dữ liệu.
 
 ### Trạng thái đặc biệt
@@ -84,18 +83,18 @@ Thao tác một cú bấm:
 
 ## 4. Giao diện
 
-Biến màu có sẵn trong `design/tokens.css` (tối là mặc định, sáng qua `data-theme="light"`).
+Hệ thống token chuẩn trong `web/css/01-tokens.css` (Midnight Navy & Crimson–Rose–Coral tối là mặc định; giao diện sáng qua `data-theme="light"` và 6 bảng màu chủ đạo `data-accent="crimson|indigo|ocean|emerald|violet|amber"` cho cả Tối & Sáng trong `web/css/07-themes.css`).
 
-- Một màu nhấn (`--accent`), không trùng màu trạng thái.
-- `--ai-1` (tím) và `--ai-2` (ngọc) chỉ dùng cho hiệu ứng khi AI đang làm việc.
+- Màu nhấn mặc định Đỏ–Hồng–Cam (`--color-accent: #F2717F`, nút chính gradient `#C9304A → #B13A7A` đạt tương phản chữ trắng AA `> 5.2:1`, tiêu đề Hero gradient `#EE4B5E → #E2549A → #F0904F`, quầng sáng nhẹ phía trên vùng chính) cùng 5 bảng màu chủ đạo tuỳ chọn (*Xanh Vũ trụ*, *Xanh Đại dương*, *Ngọc Lục bảo*, *Tím Thạch anh*, *Hổ phách*) đều đạt chuẩn tương phản WCAG 2.1 AA (`>= 4.5:1`), tách biệt rõ với màu trạng thái lỗi cam–đỏ (`--color-error: #FF7A45`) và thành công (`#3DD68C`).
+- `--ai-1`, `--ai-mid` và `--ai-2` chỉ dùng cho hiệu ứng khi AI đang làm việc.
 
 Hiệu ứng khung nhập (`design/input-effects.html`):
 
 | Trạng thái | Khi nào | Hiệu ứng |
 | --- | --- | --- |
-| Chờ nhập | Mặc định và sau khi xong | Viền `--border` |
-| Đang gõ | focus | Viền màu nhấn + vòng 1px (không glow mờ, P006) |
-| Đang phân tích | Từ lúc bấm đến token đầu tiên | Viền tím–ngọc chạy vòng, dòng trạng thái lấp lánh, nút thành Dừng |
+| Chờ nhập | Mặc định và sau khi xong | Nền `--color-frame-bg`, viền `--color-border-strong` |
+| Đang gõ | focus | Viền `--focus-border-color` (`#F2717F`) + vòng 1px |
+| Đang phân tích | Từ lúc bấm đến token đầu tiên | Viền conic Đỏ–Hồng–Cam chạy vòng, dòng trạng thái lấp lánh, nút thành Dừng |
 | Đang viết | Khi nhận `delta` | Vệt sáng đáy khung kết quả + con trỏ nhấp nháy |
 
 Chỉ dùng CSS (`conic-gradient` + `@property`). Tắt chuyển động với `prefers-reduced-motion`. Trạng thái đọc được qua `role="status"`.
@@ -106,14 +105,12 @@ Chỉ dùng CSS (`conic-gradient` + `@property`). Tắt chuyển động với `
 2. LLM viết prompt (stream), rồi ghi khối meta: `intent` và tối đa 4 giả định, mỗi giả định có 2–3 phương án khác.
 3. Backend lưu v1; giao diện hiện prompt và chip giả định.
 4. Đổi giả định, tinh chỉnh, tạo lại hoặc sửa tay: mỗi việc tạo một phiên bản mới.
-5. So sánh (tùy chọn): hai lần gọi song song.
-6. Copy hoặc Lưu.
+5. Copy hoặc Lưu.
 
 Quy tắc:
 
 - Đổi giả định là một lần refine với chỉ dẫn sinh tự động.
 - Ngữ cảnh refine chỉ gồm yêu cầu gốc, phiên bản đang xem, chỉ dẫn mới.
-- Phiên dán prompt không có yêu cầu gốc nên không có So sánh.
 
 ## 6. Meta-prompt
 
@@ -133,13 +130,17 @@ Thư mục `internal/ai/templates/`, đóng gói bằng `embed`. Template dùng 
 ===META===
 {"intent": "Thiết kế tìm kiếm video quảng cáo",
  "assumptions": [
+   {"label": "Mức độ can thiệp", "value": "Phân tích trước, chờ duyệt rồi mới sửa",
+    "alternatives": ["Tự sửa code và chạy test", "Chỉ báo cáo chẩn đoán"],
+    "impact": "high", "question": "Bạn muốn agent thực hiện đến mức nào?"},
    {"label": "Nền tảng", "value": "Web app desktop",
     "alternatives": ["Ứng dụng di động", "Cả hai"]}
  ]}
 ```
 
-- Backend stream văn bản tới khi gặp `===META===`; giữ lại vài ký tự cuối mỗi đoạn để không lọt dòng phân cách.
+- Backend stream văn bản tới khi gặp `===META===`; giữ lại vài ký tự cuối mỗi đoạn để không lọt dòng phân cách. Các mục `impact: "high"` (tối đa 3, tổng tối đa 4 giả định) được xếp lên đầu danh sách; khi người dùng chốt lại qua thao tác đổi giả định (`source = "assumption"`), cờ `impact: "high"` của mục đó tự động được gỡ bỏ ở phiên bản mới.
 - Với `target = api`, prompt có thêm dòng `===USER===` tách khối system và khối user.
+- Giải quyết thông tin 4 cấp độ (`generate.v2.1`): (1) Đã nêu rõ → điền trực tiếp vào prompt, không đục lỗ ngược thành `{{placeholder}}`; (2) Suy luận an toàn → tự điền + ghi `assumptions`; (3) Đích `agent` tự đọc được từ repo → giao agent khảo sát codebase thực tế thay vì hỏi ngôn ngữ/framework; (4) Thiếu thông tin rủi ro cao → chọn mặc định an toàn + gắn `impact: "high"` kèm `question`. Chỉ tạo biến `{{ten_bien}}` cho payload runtime của `api`, dữ liệu người dùng phải dán thêm lúc chạy, hoặc khi người dùng yêu cầu tạo mẫu tái sử dụng.
 
 Bản nháp `generate.v2.md`:
 
@@ -220,7 +221,6 @@ Lỗi chuẩn hóa: `ErrAuth`, `ErrRateLimit`, `ErrTimeout`, `ErrBadResponse`.
 | POST | `/api/sessions/paste` | Tạo phiên từ prompt dán vào; trùng thì 409 kèm id phiên đã có |
 | POST | `/api/sessions/{id}/refine` | Tinh chỉnh, tạo lại, đổi giả định (`fromVersionId`, `instruction`); trả SSE |
 | POST | `/api/sessions/{id}/versions` | Lưu bản sửa tay |
-| POST | `/api/versions/{id}/compare` | Chạy yêu cầu gốc và prompt song song; trả SSE hai luồng |
 | GET | `/api/sessions?q=&saved=&collection=&sort=&limit=&offset=` | Lịch sử hoặc thư viện; trả `hasMore`, `nextOffset` (limit mặc định 50, tối đa 200) |
 | GET / PATCH / DELETE | `/api/sessions/{id}` | Chi tiết / đổi tên, collection, phiên bản ghim / xóa |
 | PUT / DELETE | `/api/sessions/{id}/save` | Lưu vào collection và ghim `versionId` (trống = bản mới nhất) / bỏ lưu (bỏ ghim) |
@@ -231,7 +231,7 @@ Lỗi chuẩn hóa: `ErrAuth`, `ErrRateLimit`, `ErrTimeout`, `ErrBadResponse`.
 | DELETE | `/api/settings/key` | Xóa API key |
 | GET / POST | `/api/export`, `/api/import` | Sao lưu và khôi phục |
 
-SSE: `delta`, `done` (kèm `versionId`, `intent`, `assumptions`, `usage`, `incomplete`, `truncated`), `error` (kèm `code`). So sánh dùng `delta`, `side_done`, `side_error` có `side: "raw" | "prompt"`; thiếu biến trả 400 `missing_variables`, bản dở trả 400 `compare_incomplete`. Frontend đọc bằng `fetch` + `ReadableStream`. Client ngắt kết nối thì hủy `context` và dừng request tới LLM.
+SSE: `session`, `delta`, `done` (kèm `versionId`, `intent`, `assumptions`, `usage`, `incomplete`, `truncated`), `error` (kèm `code`). Frontend đọc bằng `fetch` + `ReadableStream`. Client ngắt kết nối thì hủy `context` và dừng request tới LLM.
 
 ## 8. Dữ liệu
 
@@ -286,15 +286,15 @@ CREATE VIRTUAL TABLE sessions_fts USING fts5(
 ```
 
 - Thư viện = các phiên có `saved_at`. Lịch sử = mọi phiên.
-- `target` thuộc từng phiên bản: tinh chỉnh bản chat thành api không đổi nhãn bản cũ. `sessions.target` chỉ nhớ lựa chọn dùng gần nhất. Copy JSON và So sánh dùng target của bản đang xem.
+- `target` thuộc từng phiên bản: tinh chỉnh bản chat thành api không đổi nhãn bản cũ. `sessions.target` chỉ nhớ lựa chọn dùng gần nhất. Copy JSON dùng target của bản đang xem.
 - Không UPDATE nội dung phiên bản cũ. Chỉ mục FTS cập nhật trong cùng transaction; `content` là phiên bản ghim.
 - Trùng lặp khi dán: so hash của nội dung đã chuẩn hóa khoảng trắng.
 - Xóa phiên đã lưu cần xác nhận; xóa phiên chưa lưu có Hoàn tác 5 giây.
 
 ## 9. Chất lượng
 
-- `evals/cases.yaml`: 20 yêu cầu mẫu (rõ ràng, mơ hồ, rất ngắn, dán nhầm nội dung cần xử lý).
-- Kiểm tra bằng máy: có `===META===`, JSON meta hợp lệ, không quá 4 giả định, prompt không tự thực hiện yêu cầu.
+- `evals/cases.yaml`: 23 yêu cầu mẫu (rõ ràng, mơ hồ, rất ngắn, dán nhầm nội dung cần xử lý, tác vụ rủi ro cao, mẫu tái sử dụng, prompt injection).
+- Kiểm tra bằng máy: có `===META===`, JSON meta hợp lệ, không quá 4 giả định (tối đa 3 `impact: "high"` kèm `question` xếp đầu), tự điền đúng ngữ cảnh không sinh placeholder thừa trên tác vụ cụ thể, prompt không tự thực hiện yêu cầu.
 - So sánh: chạy yêu cầu gốc và prompt trên cùng model, chấm mù bằng một lần gọi LLM.
 - `go run ./evals` in bảng kết quả, lưu vào `evals/results/`.
 - Unit test: bộ tách `===META===` khi dòng phân cách bị cắt giữa hai đoạn stream; render template với nội dung chứa `{{ }}`; nhận diện biến.
@@ -306,10 +306,9 @@ CREATE VIRTUAL TABLE sessions_fts USING fts5(
 1. **Nền tảng + Settings.** Xong khi: nhập key, khởi động lại vẫn còn; `GET /api/settings` không trả key.
 2. **Meta-prompt + evals.** Xong khi: mọi case qua kiểm tra bằng máy; prompt thắng yêu cầu gốc ở đa số case khi chấm mù.
 3. **Tạo prompt + giả định sửa được.** Streaming, bộ tách meta, Dừng, chip giả định, giao diện tối, hiệu ứng khung nhập. Xong khi: chữ đầu tiên hiện trong 2 giây với model nhanh; đổi giả định tạo đúng phiên bản mới.
-4. **So sánh.** Hai luồng song song, ô Dữ liệu thử.
-5. **Phiên bản + tinh chỉnh.** Xong khi: quay về bản cũ rồi tinh chỉnh ghi đúng `parent_id`.
-6. **Lịch sử kiêm thư viện.** Lưu một cú bấm, collection, dán prompt, tìm kiếm bỏ dấu, xuất/nhập. Xong khi: test end-to-end chạy qua; xóa collection không mất phiên nào.
-7. **Nơi dùng + mẫu khởi đầu (sau MVP).** Dropdown 3 lựa chọn (`chat`, `api`, `agent`), kết quả 2 khối cho `api` (`design/result-api.html`), 8 mẫu trong `starters.vi.json`.
+4. **Phiên bản + tinh chỉnh.** Xong khi: quay về bản cũ rồi tinh chỉnh ghi đúng `parent_id`.
+5. **Lịch sử kiêm thư viện.** Lưu một cú bấm, collection, dán prompt, tìm kiếm bỏ dấu, xuất/nhập. Xong khi: test end-to-end chạy qua; xóa collection không mất phiên nào.
+6. **Nơi dùng + mẫu khởi đầu (sau MVP).** Dropdown 3 lựa chọn (`chat`, `api`, `agent`), kết quả 2 khối cho `api` (`design/result-api.html`), 8 mẫu trong `starters.vi.json`.
 
 Mẫu khởi đầu là một yêu cầu ví dụ viết đầy đủ; bấm chip thì điền vào ô và bôi chọn sẵn phần cần thay (`setSelectionRange`), không chiếm phím Tab:
 

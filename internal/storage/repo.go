@@ -24,6 +24,8 @@ type AssumptionRecord struct {
 	Label        string   `json:"label"`
 	Value        string   `json:"value"`
 	Alternatives []string `json:"alternatives,omitempty"`
+	Impact       string   `json:"impact,omitempty"`
+	Question     string   `json:"question,omitempty"`
 }
 
 type Collection struct {

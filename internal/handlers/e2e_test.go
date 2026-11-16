@@ -128,7 +128,7 @@ func doJSONRequest(t *testing.T, client *http.Client, method, url, token string,
 	return resp
 }
 
-func TestV2FullLifecycleGenerateAssumptionSaveReopenRefineAndCompare(t *testing.T) {
+func TestV2FullLifecycleGenerateAssumptionSaveReopenAndRefine(t *testing.T) {
 	const token = "test-session-token-v2"
 	ts, _, secPath := setupTestEnv(t, token)
 	client := ts.Client()
@@ -331,48 +331,6 @@ func TestV2FullLifecycleGenerateAssumptionSaveReopenRefineAndCompare(t *testing.
 	if detail.Versions[1].ParentID != v1ID || detail.Versions[2].ParentID != v2ID {
 		t.Fatalf("unexpected parentId lineage: v2.Parent=%q v3.Parent=%q", detail.Versions[1].ParentID, detail.Versions[2].ParentID)
 	}
-
-	// 7. Side-by-side Compare on v3
-	// Compare requires a test value for every {{variable}} in the prompt.
-	cmpVars := map[string]string{}
-	for _, name := range ai.ExtractVariables(detail.Versions[2].Content) {
-		cmpVars[name] = "Khách báo đơn hàng #9182 giao thiếu 1 bàn phím cơ, yêu cầu gửi bù gấp."
-	}
-	cmpResp := doJSONRequest(t, client, http.MethodPost, ts.URL+"/api/versions/"+v3ID+"/compare", token, map[string]any{
-		"variables": cmpVars,
-	})
-	defer cmpResp.Body.Close()
-	if cmpResp.StatusCode != http.StatusOK {
-		t.Fatalf("POST /api/versions/{id}/compare status = %d", cmpResp.StatusCode)
-	}
-	cmpEvents := parseSSEStream(t, cmpResp.Body)
-	var rawDelta, promptDelta, rawDone, promptDone, allDone bool
-	for _, ev := range cmpEvents {
-		switch ev.Event {
-		case "delta":
-			switch ev.Data["side"] {
-			case "raw":
-				rawDelta = true
-			case "prompt":
-				promptDelta = true
-			}
-		case "side_done":
-			switch ev.Data["side"] {
-			case "raw":
-				rawDone = true
-			case "prompt":
-				promptDone = true
-			}
-		case "done":
-			allDone = true
-		case "error":
-			t.Fatalf("unexpected compare error: %v", ev.Data)
-		}
-	}
-	if !rawDelta || !promptDelta || !rawDone || !promptDone || !allDone {
-		t.Fatalf("incomplete compare stream: rawDelta=%v promptDelta=%v rawDone=%v promptDone=%v allDone=%v",
-			rawDelta, promptDelta, rawDone, promptDone, allDone)
-	}
 }
 
 func TestPasteDuplicateCollectionsFallbackAndExportImport(t *testing.T) {
@@ -428,14 +386,7 @@ func TestPasteDuplicateCollectionsFallbackAndExportImport(t *testing.T) {
 		t.Fatalf("expected existingSessionId=%q, got %v", pasteOut.Session.ID, dupBody["existingSessionId"])
 	}
 
-	// 4. Compare on pasted prompt -> 400 Bad Request
-	cmpPasted := doJSONRequest(t, client, http.MethodPost, ts.URL+"/api/versions/"+pasteOut.Version.ID+"/compare", token, map[string]any{})
-	_ = cmpPasted.Body.Close()
-	if cmpPasted.StatusCode != http.StatusBadRequest {
-		t.Fatalf("expected 400 Bad Request when comparing pasted session, got %d", cmpPasted.StatusCode)
-	}
-
-	// 5. System collection "Chưa phân loại" cannot be deleted
+	// 4. System collection "Chưa phân loại" cannot be deleted
 	delSys := doJSONRequest(t, client, http.MethodDelete, ts.URL+"/api/collections/"+storage.SystemCollectionID, token, nil)
 	_ = delSys.Body.Close()
 	if delSys.StatusCode != http.StatusForbidden {

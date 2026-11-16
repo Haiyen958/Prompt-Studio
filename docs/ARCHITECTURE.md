@@ -16,7 +16,7 @@ server.Middleware   Host/Origin, session token (cookie or X-Prompt-Studio-Token)
 handlers/*          decode → studio.Service → writeServiceError / sseErrorPayload
    ▼
 studio.Service      every business rule (validation, version tree, pins, settings,
-                    generate/refine pipeline, compare)
+                    generate/refine pipeline)
    ├──► ai          providers (OpenAI, OpenAI-compatible, Anthropic, Mock),
    │                ===META=== splitter, meta-prompt templates
    └──► storage     SQL + transactions only; schema migrations; FTS5 index

@@ -1,8 +1,11 @@
 package storage
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -72,26 +75,82 @@ func (r *Repo) ImportAll(bundle *BackupBundle) error {
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	for k, v := range bundle.Settings {
-		if k == "api_key" || k == "apiKey" {
-			continue // Never import secrets into SQLite settings
-		}
-		_, _ = tx.Exec(
-			`INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
-			k, v,
-		)
+	// Load existing collections inside tx so duplicate names from another machine map to
+	// the local collection ID instead of failing UNIQUE(collections.name).
+	existingCols, knownColIDs, err := loadCollectionsTx(tx)
+	if err != nil {
+		return err
 	}
+	colRemap := map[string]string{SystemCollectionID: SystemCollectionID}
 
 	for _, c := range bundle.Collections {
-		if c.IsSystem || c.ID == SystemCollectionID {
+		cid := strings.TrimSpace(c.ID)
+		cname := strings.TrimSpace(c.Name)
+		if cid == "" {
 			continue
 		}
-		_, err := tx.Exec(
-			`INSERT INTO collections (id, name, is_system, sort_order) VALUES (?, ?, 0, ?)
-			 ON CONFLICT(id) DO UPDATE SET name = excluded.name, sort_order = excluded.sort_order`,
-			c.ID, c.Name, c.SortOrder,
-		)
-		if err != nil {
+		if c.IsSystem || cid == SystemCollectionID || strings.EqualFold(cname, SystemCollectionName) {
+			colRemap[cid] = SystemCollectionID
+			continue
+		}
+		if cname == "" {
+			continue
+		}
+		if knownColIDs[cid] {
+			// Same ID already exists locally; update name only if no other collection owns it.
+			nameTaken := false
+			for _, ex := range existingCols {
+				if ex.ID != cid && strings.EqualFold(ex.Name, cname) {
+					nameTaken = true
+					break
+				}
+			}
+			if nameTaken {
+				if _, err := tx.Exec(`UPDATE collections SET sort_order = ? WHERE id = ? AND is_system = 0`, c.SortOrder, cid); err != nil {
+					return err
+				}
+			} else {
+				if _, err := tx.Exec(`UPDATE collections SET name = ?, sort_order = ? WHERE id = ? AND is_system = 0`, cname, c.SortOrder, cid); err != nil {
+					return err
+				}
+				for i := range existingCols {
+					if existingCols[i].ID == cid {
+						existingCols[i].Name = cname
+					}
+				}
+			}
+			colRemap[cid] = cid
+			continue
+		}
+
+		matchedID := ""
+		for _, ex := range existingCols {
+			if strings.EqualFold(ex.Name, cname) {
+				matchedID = ex.ID
+				break
+			}
+		}
+		if matchedID != "" {
+			colRemap[cid] = matchedID
+			continue
+		}
+
+		if _, err := tx.Exec(
+			`INSERT INTO collections (id, name, is_system, sort_order) VALUES (?, ?, 0, ?)`,
+			cid, cname, c.SortOrder,
+		); err != nil {
+			return err
+		}
+		existingCols = append(existingCols, Collection{ID: cid, Name: cname})
+		knownColIDs[cid] = true
+		colRemap[cid] = cid
+	}
+
+	for k, v := range sanitizeImportedSettings(bundle.Settings, colRemap, knownColIDs) {
+		if _, err := tx.Exec(
+			`INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+			k, v,
+		); err != nil {
 			return err
 		}
 	}
@@ -106,9 +165,20 @@ func (r *Repo) ImportAll(bundle *BackupBundle) error {
 			cp := s.Request
 			reqPtr = &cp
 		}
-		if s.CollectionID != "" {
-			cp := s.CollectionID
-			colPtr = &cp
+		if rawCol := strings.TrimSpace(s.CollectionID); rawCol != "" {
+			mapped := colRemap[rawCol]
+			if mapped == "" && knownColIDs[rawCol] {
+				mapped = rawCol
+			}
+			if mapped == "" && s.SavedAt != nil {
+				mapped = SystemCollectionID
+			}
+			if mapped != "" {
+				colPtr = &mapped
+			}
+		} else if s.SavedAt != nil {
+			sys := SystemCollectionID
+			colPtr = &sys
 		}
 		if s.PinnedVersionID != "" {
 			cp := s.PinnedVersionID
@@ -184,4 +254,88 @@ func defaultStr(s, fallback string) string {
 		return fallback
 	}
 	return s
+}
+
+func loadCollectionsTx(tx *sql.Tx) ([]Collection, map[string]bool, error) {
+	rows, err := tx.Query(`SELECT id, name, is_system, sort_order FROM collections`)
+	if err != nil {
+		return nil, nil, err
+	}
+	var out []Collection
+	known := make(map[string]bool)
+	for rows.Next() {
+		var c Collection
+		var sys int
+		if err := rows.Scan(&c.ID, &c.Name, &sys, &c.SortOrder); err != nil {
+			rows.Close()
+			return nil, nil, err
+		}
+		c.IsSystem = sys != 0
+		out = append(out, c)
+		known[c.ID] = true
+	}
+	if err := rows.Close(); err != nil {
+		return nil, nil, err
+	}
+	return out, known, rows.Err()
+}
+
+// sanitizeImportedSettings keeps only known non-secret setting keys whose values satisfy
+// the application's accepted ranges, remapping last_collection_id when needed.
+func sanitizeImportedSettings(raw map[string]string, colRemap map[string]string, knownCols map[string]bool) map[string]string {
+	out := make(map[string]string)
+	for k, v := range raw {
+		val := strings.TrimSpace(v)
+		switch k {
+		case "provider":
+			low := strings.ToLower(val)
+			if low == "openai" || low == "anthropic" || low == "openai-compatible" || low == "mock" {
+				out[k] = low
+			}
+		case "base_url":
+			out[k] = val
+		case "model":
+			if val != "" {
+				out[k] = val
+			}
+		case "temperature":
+			if f, err := strconv.ParseFloat(val, 64); err == nil && f >= 0.0 && f <= 2.0 {
+				out[k] = strconv.FormatFloat(f, 'f', 2, 64)
+			}
+		case "max_tokens":
+			if n, err := strconv.Atoi(val); err == nil && n >= 128 && n <= 16384 {
+				out[k] = strconv.Itoa(n)
+			}
+		case "timeout_sec":
+			if n, err := strconv.Atoi(val); err == nil && n >= 5 && n <= 300 {
+				out[k] = strconv.Itoa(n)
+			}
+		case "theme":
+			if val == "dark" || val == "light" || val == "system" {
+				out[k] = val
+			}
+		case "accent":
+			low := strings.ToLower(val)
+			if low == "crimson" || low == "indigo" || low == "ocean" || low == "emerald" || low == "violet" || low == "amber" {
+				out[k] = low
+			}
+		case "prompt_language":
+			if val == "match" || val == "vi" || val == "en" {
+				out[k] = val
+			}
+		case "default_target":
+			if val == "chat" || val == "api" || val == "agent" {
+				out[k] = val
+			}
+		case "last_collection_id":
+			mapped := colRemap[val]
+			if mapped == "" && knownCols[val] {
+				mapped = val
+			}
+			if mapped != "" {
+				out[k] = mapped
+			}
+		}
+	}
+	return out
 }

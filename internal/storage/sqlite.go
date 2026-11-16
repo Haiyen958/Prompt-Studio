@@ -93,6 +93,7 @@ func DefaultSettings() map[string]string {
 		"max_tokens":         "2000",
 		"timeout_sec":        "60",
 		"theme":              "dark",
+		"accent":             "crimson",
 		"prompt_language":    "match",
 		"default_target":     "chat",
 		"last_collection_id": SystemCollectionID,

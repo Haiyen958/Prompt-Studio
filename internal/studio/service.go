@@ -4,10 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sort"
 	"strings"
-	"sync"
-	"time"
 	"unicode/utf8"
 
 	"prompt-studio/internal/ai"
@@ -15,8 +12,9 @@ import (
 )
 
 const (
-	MaxRequestChars = 8000
-	MaxPasteChars   = 32000
+	MaxRequestChars      = 8000
+	MaxPasteChars        = 32000
+	MaxSessionTitleChars = 200
 )
 
 // ErrInvalidInput is wrapped by every user-input validation error of this package, so
@@ -33,27 +31,19 @@ func invalidInput(format string, args ...any) error {
 }
 
 var (
-	ErrRequestEmpty      = invalidInput("yêu cầu không được để trống")
-	ErrRequestTooLong    = invalidInput("yêu cầu vượt quá giới hạn %d ký tự", MaxRequestChars)
-	ErrPasteEmpty        = invalidInput("nội dung prompt không được để trống")
-	ErrPasteTooLong      = invalidInput("nội dung dán vượt quá giới hạn %d ký tự", MaxPasteChars)
-	ErrCollectionName    = invalidInput("tên collection không được để trống")
-	ErrCompareNotAllowed = errors.New("phiên dán prompt không có yêu cầu gốc để so sánh")
-	ErrCompareIncomplete = errors.New("phiên bản chưa xong không thể so sánh — hãy Tạo lại trước")
+	ErrRequestEmpty        = invalidInput("yêu cầu không được để trống")
+	ErrRequestTooLong      = invalidInput("yêu cầu vượt quá giới hạn %d ký tự", MaxRequestChars)
+	ErrPasteEmpty          = invalidInput("nội dung prompt không được để trống")
+	ErrPasteTooLong        = invalidInput("nội dung dán vượt quá giới hạn %d ký tự", MaxPasteChars)
+	ErrCollectionName      = invalidInput("tên collection không được để trống")
+	ErrSessionTitleEmpty   = invalidInput("tên prompt không được để trống")
+	ErrSessionTitleTooLong = invalidInput("tên prompt vượt quá giới hạn %d ký tự", MaxSessionTitleChars)
 )
 
-// MissingVariablesError lists prompt variables that have no test value.
-type MissingVariablesError struct {
-	Names []string
-}
-
-func (e *MissingVariablesError) Error() string {
-	return "cần nhập Dữ liệu thử cho: " + strings.Join(e.Names, ", ")
-}
-
 type SSEEvent struct {
-	Event string `json:"event"` // "session" | "delta" | "side_done" | "done" | "error"
+	Event string `json:"event"` // "session" | "delta" | "done" | "error"
 	Data  any    `json:"data"`
+	Err   error  `json:"-"` // original error for handler-level Vietnamese translation & server logging
 }
 
 type GenerateInput struct {
@@ -75,10 +65,6 @@ type PasteInput struct {
 	Content      string `json:"content"`
 	CollectionID string `json:"collectionId"`
 	Target       string `json:"target"`
-}
-
-type CompareInput struct {
-	Variables map[string]string `json:"variables"`
 }
 
 // MockModel is the model ID reported while the server runs with --mock.
@@ -425,183 +411,6 @@ func (s *Service) RefineSessionPrompt(ctx context.Context, sessionID string, in 
 	return res.Version, nil
 }
 
-// CompareVersion executes raw request (side="raw") and active prompt (side="prompt")
-// in parallel on the configured LLM without persisting outputs to SQLite.
-func (s *Service) CompareVersion(ctx context.Context, versionID string, varValues map[string]string, emit func(SSEEvent)) error {
-	ver, sess, err := s.repo.GetVersion(strings.TrimSpace(versionID))
-	if err != nil {
-		return err
-	}
-	if err := CheckComparable(ver, sess, varValues); err != nil {
-		return err
-	}
-
-	cfg, _, _, err := s.LoadProviderConfig()
-	if err != nil {
-		return err
-	}
-	prov, err := s.providerFactory(cfg)
-	if err != nil {
-		return err
-	}
-
-	rawContent := sess.Request
-	if extra := formatTestDataAppendix(varValues); extra != "" {
-		rawContent = rawContent + "\n\n" + extra
-	}
-	rawMsgs := []ai.Message{{Role: "user", Content: rawContent}}
-
-	filledPrompt := ai.FillVariables(ver.Content, varValues)
-	var promptMsgs []ai.Message
-	if ver.Target == "api" {
-		if sys, usr, ok := ai.SplitAPIParts(filledPrompt); ok {
-			promptMsgs = []ai.Message{
-				{Role: "system", Content: sys},
-				{Role: "user", Content: usr},
-			}
-		}
-	}
-	if len(promptMsgs) == 0 {
-		promptMsgs = []ai.Message{{Role: "user", Content: filledPrompt}}
-	}
-
-	var mu sync.Mutex
-	safeEmit := func(evt SSEEvent) {
-		if emit == nil {
-			return
-		}
-		mu.Lock()
-		defer mu.Unlock()
-		emit(evt)
-	}
-
-	var wg sync.WaitGroup
-	var firstErr error
-	var failed int
-	var errMu sync.Mutex
-
-	runSide := func(side string, msgs []ai.Message) {
-		defer wg.Done()
-		start := time.Now()
-		var fullText strings.Builder
-		usage, sErr := prov.Stream(ctx, ai.Request{
-			Messages:    msgs,
-			Temperature: cfg.Temperature,
-			MaxTokens:   cfg.MaxTokens,
-		}, func(delta string) {
-			fullText.WriteString(delta)
-			safeEmit(SSEEvent{
-				Event: "delta",
-				Data: map[string]any{
-					"side":  side,
-					"delta": delta,
-				},
-			})
-		})
-		if sErr != nil {
-			errMu.Lock()
-			failed++
-			if firstErr == nil {
-				firstErr = sErr
-			}
-			errMu.Unlock()
-			if !errors.Is(sErr, context.Canceled) {
-				// Report per side so the UI shows the error in the right column while
-				// the other side keeps streaming.
-				safeEmit(SSEEvent{
-					Event: "side_error",
-					Data: map[string]any{
-						"side":    side,
-						"code":    ai.ErrorCode(sErr),
-						"message": sErr.Error(),
-					},
-				})
-			}
-			return
-		}
-		safeEmit(SSEEvent{
-			Event: "side_done",
-			Data: map[string]any{
-				"side":      side,
-				"words":     len(strings.Fields(fullText.String())),
-				"latencyMs": time.Since(start).Milliseconds(),
-				"usage":     usage,
-			},
-		})
-	}
-
-	wg.Add(2)
-	go runSide("raw", rawMsgs)
-	go runSide("prompt", promptMsgs)
-	wg.Wait()
-
-	if firstErr != nil {
-		if errors.Is(firstErr, context.Canceled) || ctx.Err() != nil {
-			return nil
-		}
-		if failed == 2 {
-			return firstErr
-		}
-	}
-
-	safeEmit(SSEEvent{
-		Event: "done",
-		Data: map[string]any{
-			"model":     cfg.Model,
-			"versionId": ver.ID,
-			"sessionId": sess.ID,
-		},
-	})
-	return nil
-}
-
-// CheckComparable validates a compare request before any LLM call: pasted sessions have
-// no original request, incomplete versions are not worth paying for, and unfilled
-// {{variables}} would make the comparison meaningless.
-func CheckComparable(ver *storage.PromptVersion, sess *storage.Session, varValues map[string]string) error {
-	if sess.Origin == "pasted" || strings.TrimSpace(sess.Request) == "" {
-		return ErrCompareNotAllowed
-	}
-	if ver.Incomplete {
-		return ErrCompareIncomplete
-	}
-	var missing []string
-	for _, name := range ai.ExtractVariables(ver.Content) {
-		if strings.TrimSpace(varValues[name]) == "" {
-			missing = append(missing, name)
-		}
-	}
-	if len(missing) > 0 {
-		return &MissingVariablesError{Names: missing}
-	}
-	return nil
-}
-
-func formatTestDataAppendix(vars map[string]string) string {
-	if len(vars) == 0 {
-		return ""
-	}
-	keys := make([]string, 0, len(vars))
-	for k, v := range vars {
-		if strings.TrimSpace(v) != "" {
-			keys = append(keys, k)
-		}
-	}
-	if len(keys) == 0 {
-		return ""
-	}
-	sort.Strings(keys)
-	var b strings.Builder
-	b.WriteString("Dữ liệu thử:")
-	for _, k := range keys {
-		b.WriteString("\n- ")
-		b.WriteString(k)
-		b.WriteString(": ")
-		b.WriteString(strings.TrimSpace(vars[k]))
-	}
-	return b.String()
-}
-
 func toStorageAssumptions(list []ai.Assumption) []storage.AssumptionRecord {
 	if len(list) == 0 {
 		return nil
@@ -612,7 +421,28 @@ func toStorageAssumptions(list []ai.Assumption) []storage.AssumptionRecord {
 			Label:        a.Label,
 			Value:        a.Value,
 			Alternatives: a.Alternatives,
+			Impact:       a.Impact,
+			Question:     a.Question,
 		})
+	}
+	return out
+}
+
+// resolveConfirmedAssumption clears high-impact clarification flags on any assumption
+// whose label was explicitly confirmed or overridden by the user (`source == "assumption"`).
+func resolveConfirmedAssumption(list []storage.AssumptionRecord, source, instruction string) []storage.AssumptionRecord {
+	if len(list) == 0 || source != "assumption" || strings.TrimSpace(instruction) == "" {
+		return list
+	}
+	lowerInstr := strings.ToLower(instruction)
+	out := make([]storage.AssumptionRecord, len(list))
+	copy(out, list)
+	for i := range out {
+		lbl := strings.ToLower(strings.TrimSpace(out[i].Label))
+		if lbl != "" && strings.Contains(lowerInstr, lbl) {
+			out[i].Impact = ""
+			out[i].Question = ""
+		}
 	}
 	return out
 }
