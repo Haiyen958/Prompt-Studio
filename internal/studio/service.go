@@ -280,119 +280,39 @@ func (s *Service) StartSessionAndGenerate(ctx context.Context, in GenerateInput,
 		return nil, err
 	}
 
-	start := time.Now()
-	splitter := ai.NewStreamSplitter(func(delta string) {
-		if emit != nil {
-			emit(SSEEvent{
-				Event: "delta",
-				Data:  map[string]string{"delta": delta},
-			})
-		}
-	})
-
-	usage, streamErr := prov.Stream(ctx, ai.Request{
-		Messages:    []ai.Message{{Role: "user", Content: rendered}},
-		Temperature: cfg.Temperature,
-		MaxTokens:   cfg.MaxTokens,
-	}, func(chunk string) {
-		splitter.Feed(chunk)
-	})
-	latencyMs := int(time.Since(start).Milliseconds())
-
-	if streamErr != nil {
-		partial := splitter.CurrentPrompt()
-		if partial != "" {
-			ver, saveErr := s.repo.CreateVersion(storage.PromptVersion{
-				SessionID:       sess.ID,
-				Source:          "generate",
-				Target:          target,
-				Content:         partial,
-				Incomplete:      true,
-				TemplateVersion: ai.GenerateTemplateVersion,
-				Model:           cfg.Model,
-				InputTokens:     usage.InputTokens,
-				OutputTokens:    usage.OutputTokens,
-				LatencyMs:       latencyMs,
-			})
-			if saveErr == nil {
-				versionSaved = true
+	res, err := s.runPromptStream(ctx, promptStream{
+		cfg:      cfg,
+		prov:     prov,
+		rendered: rendered,
+		draft: storage.PromptVersion{
+			SessionID:       sess.ID,
+			Source:          "generate",
+			Target:          target,
+			TemplateVersion: ai.GenerateTemplateVersion,
+		},
+		beforeSave: func(split ai.SplitResult) {
+			if split.MetaValid && split.Meta.Intent != "" {
+				title := split.Meta.Intent
+				if updated, uErr := s.repo.UpdateSession(sess.ID, storage.SessionPatch{Title: &title}); uErr == nil {
+					sess = updated
+				}
 			}
-			if saveErr == nil && emit != nil {
-				emit(SSEEvent{
-					Event: "done",
-					Data: map[string]any{
-						"sessionId":  sess.ID,
-						"session":    sess,
-						"versionId":  ver.ID,
-						"version":    ver,
-						"incomplete": true,
-						"variables":  ai.ExtractVariables(ver.Content),
-						"usage":      usage,
-						"latencyMs":  latencyMs,
-					},
-				})
-			}
-			if versionSaved && errors.Is(streamErr, context.Canceled) {
-				return s.repo.GetSessionDetail(sess.ID, false)
-			}
-		}
-		return nil, streamErr
-	}
-
-	splitRes := splitter.Finalize()
-	promptContent := strings.TrimSpace(splitRes.Prompt)
-	if promptContent == "" {
-		return nil, ai.ErrBadResponse
-	}
-	// Hitting max tokens before ===META=== means the prompt itself was cut mid-way.
-	// Cut inside the meta block keeps a complete prompt (only the assumptions are lost).
-	truncatedPrompt := usage.Truncated && !splitRes.MetaPresent
-
-	assumptions := toStorageAssumptions(splitRes.Meta.Assumptions)
-	if splitRes.MetaValid && splitRes.Meta.Intent != "" {
-		intentTitle := splitRes.Meta.Intent
-		if updated, uErr := s.repo.UpdateSession(sess.ID, storage.SessionPatch{Title: &intentTitle}); uErr == nil {
-			sess = updated
-		}
-	}
-
-	ver, err := s.repo.CreateVersion(storage.PromptVersion{
-		SessionID:       sess.ID,
-		Source:          "generate",
-		Target:          target,
-		Content:         promptContent,
-		Assumptions:     assumptions,
-		Incomplete:      truncatedPrompt,
-		TemplateVersion: ai.GenerateTemplateVersion,
-		Model:           cfg.Model,
-		InputTokens:     usage.InputTokens,
-		OutputTokens:    usage.OutputTokens,
-		LatencyMs:       latencyMs,
-	})
+		},
+	}, emit)
+	versionSaved = res.Version != nil
 	if err != nil {
 		return nil, err
 	}
-	versionSaved = true
-
-	if emit != nil {
-		emit(SSEEvent{
-			Event: "done",
-			Data: map[string]any{
-				"sessionId":   sess.ID,
-				"session":     sess,
-				"versionId":   ver.ID,
-				"version":     ver,
-				"intent":      sess.Title,
-				"assumptions": ver.Assumptions,
-				"incomplete":  ver.Incomplete,
-				"truncated":   usage.Truncated,
-				"variables":   ai.ExtractVariables(ver.Content),
-				"usage":       usage,
-				"latencyMs":   latencyMs,
-			},
-		})
+	if res.Version != nil && emit != nil {
+		emit(SSEEvent{Event: "done", Data: donePayload(*sess, res)})
 	}
-
+	if res.StreamErr != nil {
+		// Stop (client cancel) with a saved partial version is a normal end, not an error.
+		if res.Partial && errors.Is(res.StreamErr, context.Canceled) {
+			return s.repo.GetSessionDetail(sess.ID, false)
+		}
+		return nil, res.StreamErr
+	}
 	return s.repo.GetSessionDetail(sess.ID, false)
 }
 
@@ -461,116 +381,34 @@ func (s *Service) RefineSessionPrompt(ctx context.Context, sessionID string, in 
 		return nil, err
 	}
 
-	start := time.Now()
-	splitter := ai.NewStreamSplitter(func(delta string) {
-		if emit != nil {
-			emit(SSEEvent{
-				Event: "delta",
-				Data:  map[string]string{"delta": delta},
-			})
-		}
-	})
-
-	usage, streamErr := prov.Stream(ctx, ai.Request{
-		Messages:    []ai.Message{{Role: "user", Content: rendered}},
-		Temperature: cfg.Temperature,
-		MaxTokens:   cfg.MaxTokens,
-	}, func(chunk string) {
-		splitter.Feed(chunk)
-	})
-	latencyMs := int(time.Since(start).Milliseconds())
-
-	if streamErr != nil {
-		partial := splitter.CurrentPrompt()
-		if partial != "" {
-			ver, saveErr := s.repo.CreateVersion(storage.PromptVersion{
-				SessionID:       sessionID,
-				ParentID:        baseVer.ID,
-				Source:          source,
-				Target:          target,
-				Instruction:     instr,
-				Content:         partial,
-				Incomplete:      true,
-				TemplateVersion: ai.RefineTemplateVersion,
-				Model:           cfg.Model,
-				InputTokens:     usage.InputTokens,
-				OutputTokens:    usage.OutputTokens,
-				LatencyMs:       latencyMs,
-			})
-			if saveErr == nil && emit != nil {
-				emit(SSEEvent{
-					Event: "done",
-					Data: map[string]any{
-						"sessionId":  sessionID,
-						"session":    detail.Session,
-						"versionId":  ver.ID,
-						"version":    ver,
-						"incomplete": true,
-						"variables":  ai.ExtractVariables(ver.Content),
-						"usage":      usage,
-						"latencyMs":  latencyMs,
-					},
-				})
-			}
-			if errors.Is(streamErr, context.Canceled) {
-				return ver, nil
-			}
-		}
-		return nil, streamErr
-	}
-
-	splitRes := splitter.Finalize()
-	promptContent := strings.TrimSpace(splitRes.Prompt)
-	if promptContent == "" {
-		return nil, ai.ErrBadResponse
-	}
-	// Hitting max tokens before ===META=== means the prompt itself was cut mid-way.
-	// Cut inside the meta block keeps a complete prompt (only the assumptions are lost).
-	truncatedPrompt := usage.Truncated && !splitRes.MetaPresent
-
-	assumptions := toStorageAssumptions(splitRes.Meta.Assumptions)
-	if len(assumptions) == 0 && len(baseVer.Assumptions) > 0 {
-		assumptions = baseVer.Assumptions
-	}
-
-	ver, err := s.repo.CreateVersion(storage.PromptVersion{
-		SessionID:       sessionID,
-		ParentID:        baseVer.ID,
-		Source:          source,
-		Target:          target,
-		Instruction:     instr,
-		Content:         promptContent,
-		Assumptions:     assumptions,
-		Incomplete:      truncatedPrompt,
-		TemplateVersion: ai.RefineTemplateVersion,
-		Model:           cfg.Model,
-		InputTokens:     usage.InputTokens,
-		OutputTokens:    usage.OutputTokens,
-		LatencyMs:       latencyMs,
-	})
+	res, err := s.runPromptStream(ctx, promptStream{
+		cfg:      cfg,
+		prov:     prov,
+		rendered: rendered,
+		draft: storage.PromptVersion{
+			SessionID:       sessionID,
+			ParentID:        baseVer.ID,
+			Source:          source,
+			Target:          target,
+			Instruction:     instr,
+			Assumptions:     baseVer.Assumptions, // kept when the LLM returns none
+			TemplateVersion: ai.RefineTemplateVersion,
+		},
+	}, emit)
 	if err != nil {
 		return nil, err
 	}
-
-	if emit != nil {
-		emit(SSEEvent{
-			Event: "done",
-			Data: map[string]any{
-				"sessionId":   sessionID,
-				"session":     detail.Session,
-				"versionId":   ver.ID,
-				"version":     ver,
-				"intent":      detail.Session.Title,
-				"assumptions": ver.Assumptions,
-				"incomplete":  ver.Incomplete,
-				"truncated":   usage.Truncated,
-				"variables":   ai.ExtractVariables(ver.Content),
-				"usage":       usage,
-				"latencyMs":   latencyMs,
-			},
-		})
+	if res.Version != nil && emit != nil {
+		emit(SSEEvent{Event: "done", Data: donePayload(detail.Session, res)})
 	}
-	return ver, nil
+	if res.StreamErr != nil {
+		// Stop (client cancel) with a saved partial version is a normal end, not an error.
+		if res.Partial && errors.Is(res.StreamErr, context.Canceled) {
+			return res.Version, nil
+		}
+		return nil, res.StreamErr
+	}
+	return res.Version, nil
 }
 
 // CompareVersion executes raw request (side="raw") and active prompt (side="prompt")
