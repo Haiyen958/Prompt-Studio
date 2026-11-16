@@ -2,6 +2,30 @@
 
 All notable approved changes, plans, and decisions for **Prompt Studio** are documented in this file.
 
+## [Unreleased] — 2026-11-16 (`P008-audit-p1-p2`)
+
+### Added
+- `docs/ARCHITECTURE.md`: layers, dependency rules, where new code goes, contracts, agent rules.
+- `scripts/check.sh`: single verification gate (gofmt, tidy, build, vet, test, `node --check`).
+- Versioned schema migrations (`PRAGMA user_version`) with automatic `VACUUM INTO` backup
+  (`prompt-studio.pre-schema-vN.bak.db`) of existing databases; newer schemas are refused.
+- Graceful shutdown: Ctrl+C/SIGTERM stops streams (partial prompts saved as incomplete), waits for handlers, closes the DB.
+- Studio error banner actions: "Mở Cài đặt" (`unconfigured`, `auth_error`), "Thử lại" (`rate_limit`, `timeout`, `bad_response`, network).
+
+### Changed
+- Unexpected server errors return `internal_error` with a generic message (details only in the log); SSE `error` messages are Vietnamese.
+- Duplicate collection names return 400 `collection_error` ("đã tồn tại") instead of a raw SQLite message.
+- OpenAI (official API) streams request real token usage.
+- Internal: shared generate/refine pipeline; handlers only call `studio.Service`; `storage/repo.go` split by aggregate.
+
+### Fixed
+- A failed refine no longer clears the typed instruction.
+- After Stop, the Studio waits up to ~3 s (was ~0.9 s) for the partial version.
+- The v1 migrator no longer creates an empty `master.key`; FTS5 creation failures are no longer ignored.
+
+### Removed
+- `prompt-studio/` (stale duplicate of `design/` and `docs/PLAN.md`), unused `security.SystemKeychain` and duplicate `security.KeyHint`.
+
 ## [Unreleased] — 2026-11-16 (`P007-audit-p0-hardening`)
 
 ### Decisions Locked

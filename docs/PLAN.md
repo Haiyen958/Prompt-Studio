@@ -174,23 +174,19 @@ Biến trong prompt: chỉ nhận `{{ten}}` với tên là chữ, số, gạch d
 
 Thư viện chuẩn + `modernc.org/sqlite` (không CGO). Frontend HTML/CSS/JS thuần, nhúng bằng `embed`, không có bước build.
 
+Bố cục thư mục, ranh giới tầng và quy tắc phụ thuộc hiện hành: xem [ARCHITECTURE.md](ARCHITECTURE.md) (nguồn chuẩn cho cấu trúc code).
+
 ```text
-prompt-studio/
-├── cmd/prompt-studio/main.go
-├── internal/
-│   ├── server/      router.go  middleware.go  sse.go
-│   ├── handlers/    generate.go  compare.go  sessions.go  collections.go  settings.go
-│   ├── studio/      service.go
-│   ├── ai/
-│   │   ├── provider.go  openai.go  anthropic.go
-│   │   ├── splitter.go          # tách văn bản / ===META=== khi đang stream
-│   │   ├── templates.go
-│   │   └── templates/  generate.v2.md  refine.v2.md  targets/  starters.vi.json
-│   ├── storage/     sqlite.go  migrations/  repo.go  export.go
-│   └── secrets/     file.go
-├── web/             index.html  library.html  settings.html  app.js  api.js  style.css
-├── evals/
-└── go.mod
+cmd/prompt-studio/main.go     # flag, data dir, token, graceful shutdown
+internal/
+  server/    middleware.go sse.go run.go           # auth/Origin/limit, SSE, Run
+  handlers/  router.go errors.go + 1 file/nhóm API # decode → studio → mã lỗi
+  studio/    service.go generation.go library.go settings.go  # quy tắc nghiệp vụ
+  ai/        provider/openai/anthropic/mock, splitter, templates/
+  storage/   sqlite.go migrate.go migrate_v1.go repo/sessions/versions/collections/settings.go export.go
+  secrets/   file.go          security/ token.go (+ giải mã key v1)
+web/         index.html settings.html app.js api.js ui.js settings.js css/
+evals/  scripts/check.sh  go.mod
 ```
 
 ```go

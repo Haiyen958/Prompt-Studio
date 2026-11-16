@@ -34,8 +34,11 @@ Các cờ dòng lệnh hỗ trợ:
 ## Kiểm thử & Đánh giá chất lượng (Evals)
 
 ```bash
-# Chạy toàn bộ Unit Test, Migration Test & E2E HTTP/SSE Test
-go test -v -count=1 ./...
+# Cổng kiểm tra đầy đủ (gofmt, tidy, build, vet, test, node --check)
+scripts/check.sh
+
+# Hoặc chỉ chạy test
+go test -count=1 ./...
 
 # Chạy bộ 20 kịch bản đánh giá Meta-Prompt + Blind A/B Judge
 go run ./evals
@@ -44,6 +47,7 @@ go run ./evals
 ## Tài liệu Kiến trúc & Hệ thống Thiết kế CSS
 
 - **Kế hoạch sản phẩm & kỹ thuật v2:** [docs/PLAN.md](docs/PLAN.md)
+- **Kiến trúc, quy tắc tầng & hướng dẫn cho agent:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 - **Tài liệu Thiết kế giao diện gốc:** [design/README.md](design/README.md)
 - **Hệ thống Vanilla CSS `@layer` (Zero Framework, Zero Inline Styles):** [CSS_DESIGN_SYSTEM.md](CSS_DESIGN_SYSTEM.md) — xem trực tiếp tại `http://127.0.0.1:7788/showcase`
 - **Nhật ký thay đổi:** [docs/CHANGELOG.md](docs/CHANGELOG.md)
